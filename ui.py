@@ -13,5 +13,8 @@ app_ui = ui.page_fluid(
         # width of the field with the file name
         width="50%",
     ),
+    # butto to download the calculated dataframe
+    # ui.download_button("download_data", "Download processed data"),
+    # display the calculated dataframe
     ui.output_table("summary"),
 )
