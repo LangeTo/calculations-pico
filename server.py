@@ -15,29 +15,46 @@ def server(input: Inputs, output: Outputs, session: Session):
         file: list[FileInfo] | None = input.file1()
         if file is None:
             return pd.DataFrame()
+
         # skip first row, because this contains the indication for the separator
         # this is at least true for MO output from QIAcuity Software Suite 2.5.0.1
         # I guess file[0] has to be used because file could also contain multiple files,
         # however, at the moment this is restricted through the ui
         df = pd.read_csv(file[0]["datapath"], sep=",", skiprows=1)
 
+        # from the MO file calculate the number of positive partitions in the clusters
+        # corrsponding to the colorpairs
         df = calculate_clusters(df)
 
+        # remove some columns and rename some columns for easier handling
+        # set up dataframe in such a way that couplexes can be calculated
         df = general_filtering_formatting(df)
 
+        # calculate the number of couplexes per row, which means per well per colorpair
+        # using the equation from my PhD thesis
         df = calculate_couplexes(df)
 
         return df
 
+    # extrac the file name of the original file to make it available for the download
+    @reactive.Calc
+    def extract_filename():
+        file: list[FileInfo] | None = input.file1()
+        # if no file is uploaded, the empty download csv will be called "nothing_processed.csv"
+        if file is None:
+            return "nothing"
+        # only return the name of the file without the ending
+        return file[0]["name"].rsplit(".", 1)[0]
+
+    # function to show the dataframe
+    # and to make it available for the download
+    @output
     @render.table
     def summary():
-        df = parsed_file()
+        return parsed_file()
 
-        return df
-
-    # @render.download(filename="data.csv")
-    # def download_data():
-    #     df = parsed_file()
-
-    #     # Convert the DataFrame to a CSV format
-    #     return df.to_csv(index=False)
+    # download function
+    # lambda is necessary to use the reactive function for the generation of the filename
+    @render.download(filename=lambda: f"{extract_filename()}_processed.csv")
+    def download_data():
+        yield parsed_file().to_csv(index=False)
