@@ -1,6 +1,7 @@
 import pandas as pd
 from shiny import Inputs, Outputs, Session, reactive, render
 from shiny.types import FileInfo
+from plotnine import *
 
 from cluster_calculation import calculate_clusters
 from couplex_calculation import calculate_couplexes
@@ -58,3 +59,15 @@ def server(input: Inputs, output: Outputs, session: Session):
     @render.download(filename=lambda: f"{extract_filename()}_processed.csv")
     def download_data():
         yield parsed_file().to_csv(index=False)
+
+    @render.plot
+    def plot_couplexes():
+        plt = (
+            ggplot(parsed_file(), aes("sample_name", "couplexes"))
+            + geom_violin(scale="width")
+            + geom_point(position=position_jitter(width=0.2))
+            + labs(x="Sample", y="Number of couplexes")
+            + theme_minimal()
+        )
+
+        return plt

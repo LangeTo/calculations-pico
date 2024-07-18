@@ -15,6 +15,7 @@ app_ui = ui.page_fluid(
     ),
     # button to download the calculated dataframe
     ui.download_button("download_data", "Download processed data"),
+    ui.output_plot("plot_couplexes"),
     # display the calculated dataframe
     ui.output_table("summary"),
 )
