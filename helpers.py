@@ -20,7 +20,12 @@ def general_filtering_formatting(df):
 
     # drop rows with 0 positives partitions,
     # this can occur in dPCR and if will interfere with downstream calculations
-    df = df[(df["positives_ab1"] != 0) & (df["positives_ab2"] != 0)]
+    # also the double positives cannot be 0, otherwise the np.argmin in _couplexes function cannot breaks
+    df = df[
+        (df["positives_ab1"] != 0)
+        & (df["positives_ab2"] != 0)
+        & (df["Count categories"] != 0)
+    ]
 
     # this converts the strange µ character into an u, so that the column can be renamed
     df.columns = df.columns.str.replace("μ", "u", regex=True)
