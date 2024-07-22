@@ -2,7 +2,7 @@
 import pandas as pd
 
 # shiny packages
-from shiny import Inputs, Outputs, Session, reactive, render
+from shiny import Inputs, Outputs, Session, reactive, render, ui
 from shiny.types import FileInfo
 from plotnine import *
 
