@@ -1,8 +1,12 @@
+# python packages
 import pandas as pd
+
+# shiny packages
 from shiny import Inputs, Outputs, Session, reactive, render
 from shiny.types import FileInfo
 from plotnine import *
 
+# own functions
 from cluster_calculation import calculate_clusters
 from couplex_calculation import calculate_couplexes
 from helpers import general_filtering_formatting
@@ -62,12 +66,18 @@ def server(input: Inputs, output: Outputs, session: Session):
 
     @render.plot
     def plot_couplexes():
-        plt = (
-            ggplot(parsed_file(), aes("sample_name", "couplexes"))
-            + geom_violin(scale="width")
-            + geom_point(position=position_jitter(width=0.2))
-            + labs(x="Sample", y="Number of couplexes")
-            + theme_minimal()
-        )
+        df = parsed_file()
+
+        if df.empty:
+            plt = ggplot() + theme_void()
+        else:
+            plt = (
+                ggplot(df, aes("sample_name", "couplexes"))
+                + geom_violin(scale="width")
+                + geom_point(position=position_jitter(width=0.2))
+                + labs(x="Sample", y="Number of couplexes")
+                + facet_wrap("colorpair")
+                + theme_tufte()
+            )
 
         return plt
