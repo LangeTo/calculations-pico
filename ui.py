@@ -21,7 +21,7 @@ app_ui = ui.page_fluid(
         ),
         ui.p(
             "The source code is available from ",
-            ui.a("GitHub", href="https://github.com/LangeTo"),
+            ui.a("GitHub", href="https://github.com/LangeTo/shiny_amulator"),
             ".",
         ),
     ),
