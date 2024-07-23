@@ -74,8 +74,12 @@ def server(input: Inputs, output: Outputs, session: Session):
 
         if df.empty:
             # this will just display a white plot, when no file is uploaded
+            # so when downloaded, it'll be a white piece of paper
             plt = ggplot() + theme_void()
         else:
+            # TODO: include lambda plot and colors
+            # TODO: selectively plot some samples, make the plot more customizable
+            # TODO: make a tooltip, which tells the individual values when hovering
             plt = (
                 ggplot(df, aes("sample_name", "couplexes"))
                 + geom_violin(scale="width")
@@ -87,14 +91,17 @@ def server(input: Inputs, output: Outputs, session: Session):
 
         return plt
 
+    # calls plot_couplexes to plot the data
     @output
     @render.plot
     def render_plot_couplexes():
         return plot_couplexes()
 
+    # calls plot_couplexes to prepare the plot for download
     @render.download(filename=lambda: f"{extract_filename()}_plot.pdf")
     def download_plot():
         plt = plot_couplexes()
+        # create temporary file on local machine
         with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmpfile:
             plt.save(tmpfile.name, format="pdf")
 

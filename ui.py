@@ -12,6 +12,7 @@ app_ui = ui.page_fluid(
             ),
             ". At the moment, it uses the MultipleOccupancy file from the QIAcuity Software Suite 2.5.0.1. Here is what the app does:",
         ),
+        # ordered list
         ui.tags.ol(
             ui.tags.li(
                 "It checks the number of antibodies used in the PICO assay and calculates their possible combinations (colorpairs)."
@@ -23,7 +24,7 @@ app_ui = ui.page_fluid(
                 "Then, it calculates the number of couplexes using the dDPCS model."
             ),
             ui.tags.li(
-                "Finally, it plots the number of couplexes for all antibody combinations (colorpairs) and provides a .csv file to download."
+                "Finally, it plots the number of couplexes for all antibody combinations (colorpairs) and provides a .csv file to download. The plot can also be downloaded as .pdf."
             ),
         ),
         ui.p(
