@@ -29,3 +29,9 @@ conda list -e > requirements.txt
 ```powershell
 rsconnect deploy shiny C:\Users\tl100\PycharmProjects\shiny_amulator --name thundert --title calculate_couplexes
 ```
+
+
+<!-- rename git repository
+* disconnect from remote ```git remote rm origin```
+* add the new remote branch ```git remote add origin https://github.com/LangeTo/calculations-pico.git```
+* then set upstream branch ```git push --set-upstream origin master``` -->
