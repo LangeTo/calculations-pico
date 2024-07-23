@@ -1,10 +1,14 @@
 # python packages
+import tempfile
+import os
+
 import pandas as pd
 
-# shiny packages
-from shiny import Inputs, Outputs, Session, reactive, render, ui
-from shiny.types import FileInfo
 from plotnine import *
+
+# shiny packages
+from shiny import Inputs, Outputs, Session, reactive, render
+from shiny.types import FileInfo
 
 # own functions
 from cluster_calculation import calculate_clusters
@@ -64,11 +68,12 @@ def server(input: Inputs, output: Outputs, session: Session):
     def download_data():
         yield parsed_file().to_csv(index=False)
 
-    @render.plot
+    @reactive.Calc
     def plot_couplexes():
         df = parsed_file()
 
         if df.empty:
+            # this will just display a white plot, when no file is uploaded
             plt = ggplot() + theme_void()
         else:
             plt = (
@@ -81,3 +86,21 @@ def server(input: Inputs, output: Outputs, session: Session):
             )
 
         return plt
+
+    @output
+    @render.plot
+    def render_plot_couplexes():
+        return plot_couplexes()
+
+    @render.download(filename=lambda: f"{extract_filename()}_plot.pdf")
+    def download_plot():
+        plt = plot_couplexes()
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmpfile:
+            plt.save(tmpfile.name, format="pdf")
+
+        # open the file to ensure it is saved and can be read
+        with open(tmpfile.name, "rb") as f:
+            yield f.read()
+
+        # remove the temporary file after saving
+        os.remove(tmpfile.name)
