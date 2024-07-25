@@ -29,35 +29,41 @@ app_ui = ui.page_fluid(
         ),
         ui.p(
             "The source code is available from ",
-            ui.a("GitHub", href="https://github.com/LangeTo/shiny_amulator"),
+            ui.a("GitHub", href="https://github.com/LangeTo/calculations-pico"),
             ".",
         ),
     ),
-    ui.layout_sidebar(
-        ui.panel_sidebar(
-            ui.card(
-                ui.input_file(
-                    "file1",
-                    "Upload MultipleOccupancy file from QIAcuity Software Suite 2.5.0.1:",
-                    accept=[".csv"],
-                    multiple=False,
-                    width="100%",
+    ui.card(
+        ui.layout_sidebar(
+            ui.sidebar(
+                ui.card(
+                    ui.input_file(
+                        "file1",
+                        "Upload MultipleOccupancy file from QIAcuity Software Suite 2.5.0.1:",
+                        accept=[".csv"],
+                        multiple=False,
+                        width="100%",
+                    ),
+                    ui.download_button("download_data", "Download processed data"),
+                    ui.download_button("download_plot", "Download plot as PDF"),
                 ),
-                ui.download_button("download_data", "Download processed data"),
-                ui.download_button("download_plot", "Download plot as PDF"),
+                # CSS width of sidebar
+                width="30%",
+                # sidebar cannot be closed and is always open
+                open="always",
+                # when publishing the app on shinyapps.io, I don't know how do display static files
+                # this way only works locally
+                # ui.card(
+                #     ui.h3("PhD thesis Tobias Hundertmark"),
+                #     ui.tags.object(
+                #         data="/www/PhD_thesis_Hundertmark.pdf#page=67",
+                #         type="application/pdf",
+                #         width="100%",
+                #         height="600px",
+                #     ),
+                # ),
             ),
-            # when publishing the app on shinyapps.io, I don't know how do display static files
-            # this only works locally
-            # ui.card(
-            #     ui.h3("PhD thesis Tobias Hundertmark"),
-            #     ui.tags.object(
-            #         data="/www/PhD_thesis_Hundertmark.pdf#page=67",
-            #         type="application/pdf",
-            #         width="100%",
-            #         height="600px",
-            #     ),
-            # ),
+            ui.card(ui.output_plot("render_plot_couplexes", width="100%")),
         ),
-        ui.panel_main(ui.card(ui.output_plot("render_plot_couplexes", width="100%"))),
     ),
 )
