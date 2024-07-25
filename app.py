@@ -10,10 +10,7 @@ from server import server
 # static_assets_path = os.path.join(os.path.dirname(__file__), "www")
 # app = App(app_ui, server, static_assets={"/www": str(static_assets_path)})
 
-app = App(
-    app_ui,
-    server,
-)
+app = App(app_ui, server)
 
 # run the app
 if __name__ == "__main__":

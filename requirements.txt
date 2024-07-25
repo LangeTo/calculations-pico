@@ -3,3 +3,4 @@ numpy
 pandas
 plotnine
 shiny
+shinyswatch

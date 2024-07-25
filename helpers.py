@@ -13,6 +13,33 @@ def add_pos_par(well, doubles, df):
 
 
 def general_filtering_formatting(df):
+    # this converts the strange "µ" character into an "u", so that the column can be renamed
+    # apparently, the MO file from the QIAcuity has two different "µ" used
+    # at least that's the information I could obtain running this code to check the ordinals of the column names
+    # for col in df_extrac.columns:
+    # print(col, [ord(char) for char in col])
+    # the next two lines however, remove all the strange characters and replace them by "u"
+    df.columns = df.columns.str.replace("μ", "u", regex=True)
+    df.columns = [col.replace(chr(181), "u") for col in df.columns]
+
+    # currently the QIAcuity has 8.5K or 26K partition plates and the mastermix volumes are 13 and 42 µl
+    # if more plate formats are added, this would need to be changed
+    qiacuity_info = {"8.5K": 13, "26K": 42}
+
+    # identify the plate type from the first line of MO file
+    # as long as QIAGEN does not change the format of the MO file, the plate name has the index 0
+    # because .unique() returns the values by order of appearance
+    plate_type = df["Plate type"].unique()[0]
+
+    # compare the plate type with the hardcoded information from above
+    # and save the corresponding value in vol
+    # if there is no value matching it returns a 1
+    for key in qiacuity_info:
+        if key in plate_type:
+            vol = qiacuity_info[key]
+        else:
+            vol = 1
+
     # drop NTC because this can cause problems with calculations of no partition is positive
     # and the calculator files does not contain the sample NTC
     # this would result in the error "could not match samples"
@@ -27,9 +54,6 @@ def general_filtering_formatting(df):
         & (df["Count categories"] != 0)
     ]
 
-    # this converts the strange µ character into an u, so that the column can be renamed
-    df.columns = df.columns.str.replace("μ", "u", regex=True)
-
     # rename columns for consistent naming
     # eg use underscores and no caps and no special characters, which come from the QIAcuity output
     df = df.rename(
@@ -43,6 +67,8 @@ def general_filtering_formatting(df):
         },
         axis=1,
     )
+
+    # TODO: lambda calculations
 
     # keep only relevant columns and so reduce size of the dataframe
     df = df[
@@ -59,9 +85,6 @@ def general_filtering_formatting(df):
         ]
     ]
 
-    # this value is hard coded at the moment
-    # it applies for 26k Nanoplates
-    # this information should be taken from the plate itself
-    df["mastermix_volume"] = 42
+    df["mastermix_volume"] = vol
 
     return df

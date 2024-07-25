@@ -4,7 +4,7 @@ import os
 
 import pandas as pd
 
-from plotnine import *
+from plotnine import ggplot, theme_void
 
 # shiny packages
 from shiny import Inputs, Outputs, Session, reactive, render
@@ -14,6 +14,7 @@ from shiny.types import FileInfo
 from cluster_calculation import calculate_clusters
 from couplex_calculation import calculate_couplexes
 from helpers import general_filtering_formatting
+from plots import eval_plot
 
 
 def server(input: Inputs, output: Outputs, session: Session):
@@ -75,21 +76,12 @@ def server(input: Inputs, output: Outputs, session: Session):
         if df.empty:
             # this will just display a white plot, when no file is uploaded
             # so when downloaded, it'll be a white piece of paper
-            plt = ggplot() + theme_void()
+            return ggplot() + theme_void()
         else:
-            # TODO: include lambda plot and colors
-            # TODO: selectively plot some samples, make the plot more customizable
-            # TODO: make a tooltip, which tells the individual values when hovering
-            plt = (
-                ggplot(df, aes("sample_name", "couplexes"))
-                + geom_violin(scale="width")
-                + geom_point(position=position_jitter(width=0.2))
-                + labs(x="Sample", y="Number of couplexes")
-                + facet_wrap("colorpair")
-                + theme_tufte()
-            )
+            # this plots the evaluation plot containg the couplexes and the lambdas
+            p1, p2 = eval_plot(df)
 
-        return plt
+        return p2
 
     # calls plot_couplexes to plot the data
     @output

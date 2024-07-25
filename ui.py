@@ -1,3 +1,5 @@
+import shinyswatch
+
 from shiny import ui
 
 
@@ -66,4 +68,7 @@ app_ui = ui.page_fluid(
             ui.card(ui.output_plot("render_plot_couplexes", width="100%")),
         ),
     ),
+    # change the theme of the entire app
+    # may also be customized later on
+    theme=shinyswatch.theme.vapor,
 )
