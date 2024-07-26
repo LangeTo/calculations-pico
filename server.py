@@ -79,9 +79,9 @@ def server(input: Inputs, output: Outputs, session: Session):
             return ggplot() + theme_void()
         else:
             # this plots the evaluation plot containg the couplexes and the lambdas
-            p1, p2 = eval_plot(df)
+            p = eval_plot(df)
 
-        return p2
+        return p
 
     # calls plot_couplexes to plot the data
     @output

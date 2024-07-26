@@ -99,8 +99,9 @@ def _couplexes(n, nA, nB, nD, cycled_volume, mastermix_vol):
     # Identify minimal distance to observation
     min_index = np.argmin(diff)
 
-    # correct for actual cycled volume considering 26k nanoplates
-    # otherwise master mix volume needs to be adjusted here
+    # correct for actual cycled volume
+    # basically consideres the dead volume, that was not cycled
+    # the total volume per well is defined by the plate format, this information is added in general_filtering_formatting
     cycled_volume = cycled_volume * 1e-6
     volume_correction = mastermix_vol * 1e-6 / cycled_volume
 

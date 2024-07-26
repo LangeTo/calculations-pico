@@ -1,6 +1,7 @@
 import shinyswatch
 
 from shiny import ui
+from shared import app_dir
 
 
 app_ui = ui.page_fluid(
@@ -47,7 +48,7 @@ app_ui = ui.page_fluid(
                         width="100%",
                     ),
                     ui.download_button("download_data", "Download processed data"),
-                    ui.download_button("download_plot", "Download plot as PDF"),
+                    # ui.download_button("download_plot", "Download plot as PDF"),
                 ),
                 # CSS width of sidebar
                 width="30%",
@@ -65,9 +66,19 @@ app_ui = ui.page_fluid(
                 #     ),
                 # ),
             ),
-            ui.card(ui.output_plot("render_plot_couplexes", width="100%")),
+            ui.card(
+                ui.card_header(
+                    "Number of couplexes for samples and antibody pairs (or colorpairs).",
+                    ui.div(
+                        ui.download_button("download_plot", "Download plot as PDF"),
+                        class_="float-right",
+                    ),
+                ),
+                ui.output_plot("render_plot_couplexes", width="100%"),
+            ),
         ),
     ),
+    ui.include_css(app_dir / "styles.css"),
     # change the theme of the entire app
     # may also be customized later on
     theme=shinyswatch.theme.vapor,
