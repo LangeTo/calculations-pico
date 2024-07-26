@@ -1,3 +1,14 @@
+###############################################
+# user ignores
+###############################################
+
+tests.py
+
+###############################################
+# github template ignores
+###############################################
+
+# github template ignores
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

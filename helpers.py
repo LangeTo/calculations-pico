@@ -125,7 +125,7 @@ def general_filtering_formatting(df):
             "positives_ab1",
             "lambda_ab1",
             "positives_ab2",
-            "lambda_ab1",
+            "lambda_ab2",
             "positives_double",
         ]
     ]
