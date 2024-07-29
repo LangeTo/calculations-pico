@@ -21,3 +21,5 @@ rsconnect deploy shiny C:\Users\tl100\PycharmProjects\shiny_amulator --name thun
 * disconnect from remote ```git remote rm origin```
 * add the new remote branch ```git remote add origin https://github.com/LangeTo/calculations-pico.git```
 * then set upstream branch ```git push --set-upstream origin master``` -->
+
+<!-- might also be interesting instead of shiny: https://docs.bokeh.org/en/latest/index.html#  -->

@@ -1,7 +1,7 @@
 import shinyswatch
 
 from shiny import ui
-from shared import app_dir
+from paths import app_dir
 
 
 app_ui = ui.page_fluid(

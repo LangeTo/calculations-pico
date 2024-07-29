@@ -4,3 +4,5 @@ pandas
 plotnine
 shiny
 shinyswatch
+polars
+pyarrow
