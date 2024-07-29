@@ -8,7 +8,7 @@ min_lambda = 0.01
 # or how to change from pandas to polars and back, lol what an effort
 df_segments = (
     # read the file
-    pl.read_csv(r"examples\outputs\MO_file_2.5.01_4colors_processed.csv")
+    pl.read_csv(r"examples\outputs\new_MO_file_software_2.5.0.1_3colors_processed.csv")
     .select(["group", "sample_name", "well", "lambda_ab1", "lambda_ab2", "colorpair"])
     # make a row index
     .with_row_index(name="id")
