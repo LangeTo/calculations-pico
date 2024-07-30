@@ -20,7 +20,7 @@ def server(input: Inputs, output: Outputs, session: Session):
     pico_instance = reactive.Value(None)
 
     @reactive.Effect
-    @reactive.event(input.file1)
+    @reactive.event(input.file1, input.slider_lambda)
     def _():
         # file can either be a list of FileInfo or None
         # in this specific case only one file can be uploaded so that file[0] contains the FileInfo for the uploaded file
@@ -32,7 +32,10 @@ def server(input: Inputs, output: Outputs, session: Session):
             pico_instance.set(None)
         else:
             # create an object of the class PICO with the information from file[0]
-            pico_instance.set(PICO(file[0]))
+            # use the slider_lambda to set min and max values of lambda and filter the dataframe accordingly
+            pico_instance.set(
+                PICO(file_info=file[0], lambda_filter=input.slider_lambda())
+            )
 
     # extrac the file name of the original file to make it available for the download
     @reactive.Calc

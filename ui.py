@@ -50,14 +50,14 @@ app_ui = ui.page_fluid(
                         multiple=False,
                         width="100%",
                     ),
-                    ui.download_button("download_data", "Download processed data"),
                     ui.input_slider(
-                        "slider",
+                        "slider_lambda",
                         "Define valid \u03bb range. The suggested range is from 0.01 to 0.25",
                         min=0,
                         max=1,
-                        value=[0.01, 1],
+                        value=[0.01, 0.25],
                     ),
+                    ui.download_button("download_data", "Download processed data"),
                 ),
                 # CSS width of sidebar
                 width="30%",

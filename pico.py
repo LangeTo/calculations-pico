@@ -15,7 +15,7 @@ from plots import eval_plot_c, plot_lambda_range
 
 
 class PICO:
-    def __init__(self, file_info: FileInfo):
+    def __init__(self, file_info: FileInfo, lambda_filter: tuple):
         # save the file_info
         self.file_info = file_info
         # extract the file name without the file ending
@@ -24,6 +24,8 @@ class PICO:
         self.df = pd.read_csv(self.file_info["datapath"], sep=",", skiprows=1)
         # extract the plate format to identify the master mix volume
         self.plate_format = self.df["Plate type"].iloc[0]
+        # get the minimal and maximal lambda values for filtering from the slider
+        self.min_lambda, self.max_lambda = lambda_filter
         # calculate the clusters of the 2 dimensional dPCR data
         # self.df_clusters
         self._calculate_clusters()
@@ -133,6 +135,18 @@ class PICO:
         # this would result in the error "could not match samples"
         self.df_clusters = self.df_clusters[
             ~self.df_clusters["sample_name"].str.contains("NTC", case=True)
+        ]
+
+        # filter for the relevant lambda values that can be defined by a slider
+        self.df_clusters = self.df_clusters[
+            (
+                (self.df_clusters["lambda_ab1"] >= self.min_lambda)
+                & (self.df_clusters["lambda_ab1"] <= self.max_lambda)
+            )
+            & (
+                (self.df_clusters["lambda_ab2"] >= self.min_lambda)
+                & (self.df_clusters["lambda_ab2"] <= self.max_lambda)
+            )
         ]
 
         # drop rows with 0 positives partitions,
