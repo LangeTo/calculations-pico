@@ -105,6 +105,8 @@ def _couplexes(n, nA, nB, nD, cycled_volume, mastermix_vol):
     cycled_volume = cycled_volume * 1e-6
     volume_correction = mastermix_vol * 1e-6 / cycled_volume
 
+    # TODO: if mastermix_vol 1 nC = couplexes otherwise, the number of couplexes will be wrong because of a wrong calculation
+
     # calculate couplexes
     couplexes = round(
         (n[min_index] * (np.log(n[min_index]) - np.log(n[min_index] - nC[min_index])))

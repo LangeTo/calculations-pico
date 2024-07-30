@@ -39,6 +39,7 @@ def plot_lambda_range(df, min_lambda=0.01, additional_space=0.1, num_x_ticks=4):
     """
 
     # prepare the data
+    # the returned dataframes are polars dataframes
     df_segments, df_points = format_for_lambda_plot(
         df,
         min_lambda=min_lambda,
@@ -81,6 +82,7 @@ def plot_lambda_range(df, min_lambda=0.01, additional_space=0.1, num_x_ticks=4):
             show_legend=False,
         )
         # labels for mean, min and max points
+        # as data preparation function returns a polars dataframe, the filtering here requires polars, too
         + geom_text(
             df_points.filter(pl.col("stat") == "mean"),
             aes(x="lambda", y="antibody", label="lambda_str"),

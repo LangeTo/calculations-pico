@@ -1,6 +1,9 @@
+# shiny pacakges
 import shinyswatch
 
 from shiny import ui
+
+# own functions
 from paths import app_dir
 
 
@@ -48,7 +51,13 @@ app_ui = ui.page_fluid(
                         width="100%",
                     ),
                     ui.download_button("download_data", "Download processed data"),
-                    # ui.download_button("download_plot", "Download plot as PDF"),
+                    ui.input_slider(
+                        "slider",
+                        "Define valid \u03bb range. The suggested range is from 0.01 to 0.25",
+                        min=0,
+                        max=1,
+                        value=[0.01, 1],
+                    ),
                 ),
                 # CSS width of sidebar
                 width="30%",

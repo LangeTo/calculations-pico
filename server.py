@@ -79,7 +79,8 @@ def server(input: Inputs, output: Outputs, session: Session):
             return ggplot() + theme_void()
         else:
             # this plots the evaluation plot containg the couplexes and the lambdas
-            p = plot_lambda_range(df, min_lambda=0.01)
+            p = eval_plot_c(df)
+            # p = plot_lambda_range(df, min_lambda=0.01)
 
         return p
 

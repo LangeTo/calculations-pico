@@ -80,7 +80,7 @@ def general_filtering_formatting(df):
 
     # add master mix and dead volume to dataframe
     df["mastermix_volume"] = vol
-    df["dead_volume"] = df["mastermix_volume"] - df["volume_per_well"]
+    df["dead_volume"] = df["volume_per_well"] - df["mastermix_volume"]
 
     # calculate the lambda of both antibodies
     # the number of double positive partitions needs to be added
@@ -143,7 +143,7 @@ def format_for_lambda_plot(df, min_lambda=0.01):
         min_lambda (float, optional): the minimal lambda to be displayed, remove dPCR channels that were imaged but did not contain any target. Defaults to 0.01.
 
     Returns:
-        tuple: a dataframe (df_segments) for geom_segment containing the ranges of the lambdas; a dataframe (df_points) for geom_point containing the min, max and mean values of each lamda range
+        tuple: a dataframe (df_segments) for geom_segment containing the ranges of the lambdas; a dataframe (df_points) for geom_point containing the min, max and mean values of each lamda range; CAVE: both dataframes are polars dataframes
     """
 
     # convert the dataframe from pandas to polars

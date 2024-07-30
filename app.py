@@ -1,7 +1,7 @@
 # import os
 from shiny import App
 from ui import app_ui
-from server import server
+from server2 import server
 
 # this only work in the local version of the app but somehow not on shinyapps.io
 # construct the absolute path to the www directory using os
