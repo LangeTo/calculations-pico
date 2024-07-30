@@ -10,79 +10,68 @@ from plotnine import ggplot, theme_void
 from shiny import Inputs, Outputs, Session, reactive, render
 from shiny.types import FileInfo
 
-# own functions
-from cluster_calculation import calculate_clusters
-from couplex_calculation import calculate_couplexes
-from helpers import general_filtering_formatting
-from plots import eval_plot_c, plot_lambda_range
+# class
+from pico import PICO
 
 
 def server(input: Inputs, output: Outputs, session: Session):
-    @reactive.calc
-    def parsed_file():
-        # input.file1() can either be a list of FileInfo or None
-        # a list of FileInfo would contain "name", "size", "type" and "datapath" of the uploaded file
+
+    # central reactive variable for PICO instance
+    pico_instance = reactive.Value(None)
+
+    @reactive.Effect
+    @reactive.event(input.file1)
+    def _():
+        # file can either be a list of FileInfo or None
+        # in this specific case only one file can be uploaded so that file[0] contains the FileInfo for the uploaded file
+        # TODO: this might be adjusted when working with multiple uploads
+        # a FileInfo object contains "name", "size", "type" and "datapath" of the uploaded file
         file: list[FileInfo] | None = input.file1()
         if file is None:
-            return pd.DataFrame()
-
-        # skip first row, because this contains the indication for the separator
-        # this is at least true for MO output from QIAcuity Software Suite 2.5.0.1
-        # I guess file[0] has to be used because file could also contain multiple files,
-        # however, at the moment this is restricted through the ui
-        df = pd.read_csv(file[0]["datapath"], sep=",", skiprows=1)
-
-        # from the MO file calculate the number of positive partitions in the clusters
-        # corrsponding to the colorpairs
-        df = calculate_clusters(df)
-
-        # remove some columns and rename some columns for easier handling
-        # set up dataframe in such a way that couplexes can be calculated
-        df = general_filtering_formatting(df)
-
-        # calculate the number of couplexes per row, which means per well per colorpair
-        # using the equation from my PhD thesis
-        df = calculate_couplexes(df)
-
-        return df
+            # if no file is uploaded, no pico_instance is set
+            pico_instance.set(None)
+        else:
+            # create an object of the class PICO with the information from file[0]
+            pico_instance.set(PICO(file[0]))
 
     # extrac the file name of the original file to make it available for the download
     @reactive.Calc
     def extract_filename():
-        file: list[FileInfo] | None = input.file1()
-        # if no file is uploaded, the empty download csv will be called "nothing_processed.csv"
-        if file is None:
+        pico = pico_instance.get()
+        if pico is None:
+            # if no file is uploaded, the empty download csv will be called "nothing_processed.csv"
             return "nothing"
-        # only return the name of the file without the ending
-        return file[0]["name"].rsplit(".", 1)[0]
+        return pico.file_name
 
-    # function to show the dataframe
-    # and to make it available for the download
+    # make dataframe available for download
     @output
     @render.table
     def summary():
-        return parsed_file()
+        pico = pico_instance.get()
+        if pico is None:
+            return pd.DataFrame()
+        return pico.get_data()
 
     # download function
     # lambda is necessary to use the reactive function for the generation of the filename
     @render.download(filename=lambda: f"{extract_filename()}_processed.csv")
     def download_data():
-        yield parsed_file().to_csv(index=False)
+        pico = pico_instance.get()
+        if pico is None:
+            # if no file is uploaded, the empty download csv will be called "nothing_processed.csv"
+            yield pd.DataFrame().to_csv(index=False)
+        else:
+            yield pico.get_data().to_csv(index=False)
 
     @reactive.Calc
     def plot_couplexes():
-        df = parsed_file()
-
-        if df.empty:
-            # this will just display a white plot, when no file is uploaded
+        pico = pico = pico_instance.get()
+        if pico is None:
+            # this will just display an empty plot, when no file is uploaded
             # so when downloaded, it'll be a white piece of paper
             return ggplot() + theme_void()
         else:
-            # this plots the evaluation plot containg the couplexes and the lambdas
-            p = eval_plot_c(df)
-            # p = plot_lambda_range(df, min_lambda=0.01)
-
-        return p
+            return pico.get_plot()
 
     # calls plot_couplexes to plot the data
     @output

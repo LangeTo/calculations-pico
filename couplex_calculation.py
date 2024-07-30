@@ -44,10 +44,7 @@ def calculate_couplexes(df):
 
 def _couplexes(n, nA, nB, nD, cycled_volume, mastermix_vol):
     """
-    This function calculates the number of couplexes using the calculation from my PhD thesis.
-    Details can be obtained from my PhD thesis.
-
-    Note to myself: I still need to upload it somewhere.
+    This function calculates the number of couplexes using the calculation from my PhD thesis. Details can be obtained from my PhD thesis.
 
     Args:
         n (integer): total number of partitions
@@ -58,7 +55,7 @@ def _couplexes(n, nA, nB, nD, cycled_volume, mastermix_vol):
         mastermix_vol (float): volume of the master mix
 
     Returns:
-        list:   number of partitions positive for a couplex (integer),
+        tuple:  number of partitions positive for a couplex (integer),
                 numer of partitions positive for both antibodies but not couplexes (integer),
                 number of partitions rc-overlap positive (integer),
                 number of couplexes (integer),
@@ -99,19 +96,20 @@ def _couplexes(n, nA, nB, nD, cycled_volume, mastermix_vol):
     # Identify minimal distance to observation
     min_index = np.argmin(diff)
 
-    # correct for actual cycled volume
-    # basically consideres the dead volume, that was not cycled
-    # the total volume per well is defined by the plate format, this information is added in general_filtering_formatting
-    cycled_volume = cycled_volume * 1e-6
-    volume_correction = mastermix_vol * 1e-6 / cycled_volume
-
-    # TODO: if mastermix_vol 1 nC = couplexes otherwise, the number of couplexes will be wrong because of a wrong calculation
-
-    # calculate couplexes
+    # calculate couplexes using the standard equation to calculate the number targets in a dPCR
     couplexes = round(
-        (n[min_index] * (np.log(n[min_index]) - np.log(n[min_index] - nC[min_index])))
-        * volume_correction
+        n[min_index] * (np.log(n[min_index]) - np.log(n[min_index] - nC[min_index]))
     )
+
+    # if there is something wrong with the plate format, there will be no compensation for the dead volume, however, if the mastermix_vol is known through the plate format, the dead volumne correction is applied
+    if mastermix_vol == False:
+        pass
+    else:
+
+        # correct for actual cycled volume
+        # basically consideres the dead volume, that was not cycled
+        # the total volume per well is defined by the plate format, this information is added in general_filtering_formatting
+        couplexes = couplexes * mastermix_vol / cycled_volume
 
     # # this is necessary for absolute quantification
     # # convert the number of couplexes into the molar concentration in the binding reaction
