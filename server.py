@@ -14,7 +14,7 @@ from shiny.types import FileInfo
 from cluster_calculation import calculate_clusters
 from couplex_calculation import calculate_couplexes
 from helpers import general_filtering_formatting
-from plots import eval_plot_c, eval_plot_l
+from plots import eval_plot_c, plot_lambda_range
 
 
 def server(input: Inputs, output: Outputs, session: Session):
@@ -79,7 +79,7 @@ def server(input: Inputs, output: Outputs, session: Session):
             return ggplot() + theme_void()
         else:
             # this plots the evaluation plot containg the couplexes and the lambdas
-            p = eval_plot_l(df)
+            p = plot_lambda_range(df, min_lambda=0.01)
 
         return p
 

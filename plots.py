@@ -1,10 +1,13 @@
+# python packages
 import polars as pl
 import numpy as np
 
 from plotnine import *
 
+# own functions
+from helpers import format_for_lambda_plot
 
-# TODO: include lambda plot and colors
+
 # TODO: customize theme
 # TODO: selectively plot some samples, make the plot more customizable
 # TODO: make a tooltip, which tells the individual values when hovering
@@ -21,63 +24,30 @@ def eval_plot_c(df):
     return p
 
 
-def eval_plot_l(df):
+def plot_lambda_range(df, min_lambda=0.01, additional_space=0.1, num_x_ticks=4):
+    """
+    This functions plots the lambda ranges of each experimental group, sample and antibody. Because some PICO experiments have an inherent redundancy as one antibody may be used in multiple antibody combinations, this plot will contain redundant information, too, i.e. some lambda ranges are plotted twice. However, the combination of two antibodies is unique. First, the function calls another function to format the data and then plots the lambda ranges using plotnine.
 
-    min_lambda = 0.01
+    Args:
+        df (dataframe): the uploaded dataframe with processing by parsed_file() from server.py
+        min_lambda (float, optional): the minimal lambda to be displayed, remove dPCR channels that were imaged but did not contain any target. Defaults to 0.01.
+        additional_space (float, optional): additional space on the x-axis from the maximal lambda of the data, needed for better visibility. Defaults to 0.1.
+        num_x_ticks (int, optional): the number of vertical lines and labels for the lambda range segments. Defaults to 4.
 
-    dfpl = pl.from_pandas(df)
+    Returns:
+        plotnine object: the lambda range plot
+    """
 
-    df_segments = (
-        dfpl.select(
-            ["group", "sample_name", "well", "lambda_ab1", "lambda_ab2", "colorpair"]
-        )
-        # make a row index
-        .with_row_index(name="id")
-        # may this needs to be at a different position later and the value might be adjusted to remove low value
-        # maybe this can be set with a slider in the ui
-        .filter(
-            (pl.col("lambda_ab1") > min_lambda) & (pl.col("lambda_ab2") > min_lambda)
-        )
-        # equivalent to tidyr::pivot_longer
-        .unpivot(
-            index=["id", "group", "sample_name", "well", "colorpair"],
-            on=["lambda_ab1", "lambda_ab2"],
-            variable_name="antibody",
-            value_name="lambda_ab",
-        )
-        # this may be improved, when the antibody name is available from a separate file
-        .with_columns(
-            pl.when(pl.col("antibody") == "lambda_ab1")
-            .then(pl.lit("ab1"))
-            .when(pl.col("antibody") == "lambda_ab2")
-            .then(pl.lit("ab2"))
-            # if non of the above conditions are true
-            .otherwise(pl.lit("no antibody name specified"))
-            # column name
-            .alias("antibody")
-        )
-        .group_by(["group", "sample_name", "colorpair", "antibody"])
-        .agg(
-            min=pl.col("lambda_ab").min(),
-            max=pl.col("lambda_ab").max(),
-            mean=pl.col("lambda_ab").mean(),
-        )
+    # prepare the data
+    df_segments, df_points = format_for_lambda_plot(
+        df,
+        min_lambda=min_lambda,
     )
 
-    df_points = df_segments.unpivot(
-        index=[
-            "group",
-            "sample_name",
-            "colorpair",
-            "antibody",
-        ],
-        on=["max", "min", "mean"],
-        variable_name="stat",
-        value_name="lambda",
-    ).with_columns(pl.col("lambda").round(2).cast(pl.String).alias("lambda_str"))
-
-    max_lambda = round(df_points["lambda"].max() + 0.1, 2)
-    tickx = list(np.round(np.linspace(0, max_lambda, num=4), 2))
+    # calculate the maximal lambda and add some additional space for the x-axis
+    max_lambda = round(df_points["lambda"].max() + additional_space, 2)
+    # generate list for vertial lines used by geom_vline and labels from 0 to max_lambda
+    tickx = list(np.round(np.linspace(0, max_lambda, num=num_x_ticks), 2))
 
     p = (
         ggplot()
@@ -116,6 +86,7 @@ def eval_plot_l(df):
             aes(x="lambda", y="antibody", label="lambda_str"),
             color="black",
             size=8,
+            # separate the label to bottom from the point
             nudge_y=-0.4,
         )
         + geom_text(
@@ -134,12 +105,14 @@ def eval_plot_l(df):
             # separate the label to right from the point
             nudge_x=0.02,
         )
-        + theme_tufte()
-        + theme(axis_ticks=element_blank())
         + facet_wrap(["group", "sample_name", "colorpair"], scales="free_y")
         + scale_x_continuous(labels=tickx, breaks=tickx)
+        # TODO: replace theme and colors by colors that fit the overall theme of the app
+        + theme_tufte()
         + scale_fill_manual(values=["#c3ca8c", "#d1d3d4", "#f2c480"])
         + scale_color_manual(values=["#939c49", "#6d6e71", "#ea9f2f"])
+        # remove any remaining ticks and labels
+        + theme(axis_ticks=element_blank())
         + labs(y="", x="")
     )
 
