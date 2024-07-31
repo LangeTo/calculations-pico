@@ -59,7 +59,18 @@ app_ui = ui.page_fluid(
                     ),
                     # this renders the filter boxes after the upload of a file
                     ui.output_ui("dynamic_checkboxes"),
-                    ui.download_button("download_data", "Download processed data"),
+                    ui.layout_columns(
+                        ui.download_button(
+                            "download_data",
+                            "Download processed data",
+                            class_="down-button-height",
+                        ),
+                        ui.download_button(
+                            "download_data_filtered",
+                            "Download processed & filtered data",
+                            class_="down-button-height",
+                        ),
+                    ),
                 ),
                 # CSS width of sidebar
                 width="30%",
@@ -80,9 +91,8 @@ app_ui = ui.page_fluid(
             ui.card(
                 ui.card_header(
                     "Number of couplexes for samples and antibody pairs (or colorpairs).",
-                    ui.div(
-                        ui.download_button("download_plot", "Download plot as PDF"),
-                        class_="float-right",
+                    ui.download_button(
+                        "download_plot", "Download plot as PDF", class_="float-right"
                     ),
                 ),
                 ui.output_plot("render_plot_couplexes", width="100%"),

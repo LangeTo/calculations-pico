@@ -3,6 +3,7 @@ import tempfile
 import os
 
 import pandas as pd
+import polars as pl
 
 from plotnine import ggplot, theme_void
 
@@ -79,15 +80,6 @@ def server(input: Inputs, output: Outputs, session: Session):
             return "nothing"
         return pico.file_name
 
-    # make dataframe available for download
-    @output
-    @render.table
-    def summary():
-        pico = pico_instance.get()
-        if pico is None:
-            return pd.DataFrame()
-        return pico.get_couplexes()
-
     # download function
     # lambda is necessary to use the reactive function for the generation of the filename
     @render.download(filename=lambda: f"{extract_filename()}_processed.csv")
@@ -97,7 +89,17 @@ def server(input: Inputs, output: Outputs, session: Session):
             # if no file is uploaded, the empty download csv will be called "nothing_processed.csv"
             yield pd.DataFrame().to_csv(index=False)
         else:
-            yield pico.get_couplexes().to_csv(index=False)
+            yield pico.df_couplexes.to_csv(index=False)
+
+    # same as download above but with the filtered dataframe
+    @render.download(filename=lambda: f"{extract_filename()}_processed_filtered.csv")
+    def download_data_filtered():
+        pico = pico_instance.get()
+        if pico is None:
+            yield pd.DataFrame().to_csv(index=False)
+        else:
+            # wirte_csv from polars needs to be used because the return dataframe is a polars dataframe in contrast to the other download function above
+            yield pico.df_filtered.write_csv()
 
     @reactive.Calc
     def plot_couplexes():

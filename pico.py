@@ -192,18 +192,9 @@ class PICO:
     # public functions
     ###############################################
 
-    def get_couplexes(self) -> pd.DataFrame:
-        """
-        This functions returns the dataframe containing the all results.
-
-        Returns:
-            pd.DataFrame: final dataframe after formatting, filtering and couplex calculation
-        """
-        return self.df_couplexes
-
     def get_plot(self, groups: list, samples: list, colorpairs: list) -> ggplot:
         """
-        This function plots the number of couplexes of the filtered dataframe.
+        This function plots the number of couplexes of the filtered dataframe, which is saved in self.df_filtered.
 
         Args:
             groups (list): groups to be included in the plot
@@ -217,14 +208,14 @@ class PICO:
         # filtering for the ticked boxes
         # if no box of a column is ticked plotnine throws an error
         # this might be handeled differently in the future by displaying a funny image or so
-        df = pl.from_pandas(self.df_couplexes).filter(
+        self.df_filtered = pl.from_pandas(self.df_couplexes).filter(
             (pl.col("group").is_in(groups))
             & (pl.col("sample_name").is_in(samples))
             & (pl.col("colorpair").is_in(colorpairs))
         )
 
         p = (
-            ggplot(df, aes("sample_name", "couplexes"))
+            ggplot(self.df_filtered, aes("sample_name", "couplexes"))
             + geom_violin(scale="width")
             # fix random_state to have the same jitter before and after filtering
             + geom_point(position=position_jitter(width=0.2, random_state=123))
