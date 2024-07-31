@@ -129,34 +129,34 @@ class PICO:
         # drop NTC because this can cause problems with calculations of no partition is positive
         # and the calculator files does not contain the sample NTC
         # this would result in the error "could not match samples"
-        self.df_clusters = self.df_clusters[
+        self.df_filtered1 = self.df_clusters[
             ~self.df_clusters["sample_name"].str.contains("NTC", case=True)
         ]
 
         # filter for the relevant lambda values that can be defined by a slider
-        self.df_clusters = self.df_clusters[
+        self.df_filtered1 = self.df_filtered1[
             (
-                (self.df_clusters["lambda_ab1"] >= self.min_lambda)
-                & (self.df_clusters["lambda_ab1"] <= self.max_lambda)
+                (self.df_filtered1["lambda_ab1"] >= self.min_lambda)
+                & (self.df_filtered1["lambda_ab1"] <= self.max_lambda)
             )
             & (
-                (self.df_clusters["lambda_ab2"] >= self.min_lambda)
-                & (self.df_clusters["lambda_ab2"] <= self.max_lambda)
+                (self.df_filtered1["lambda_ab2"] >= self.min_lambda)
+                & (self.df_filtered1["lambda_ab2"] <= self.max_lambda)
             )
         ]
 
         # drop rows with 0 positives partitions,
         # this can occur in dPCR and if will interfere with downstream calculations
         # also the double positives cannot be 0, otherwise the np.argmin in _couplexes function cannot breaks
-        self.df_clusters = self.df_clusters[
-            (self.df_clusters["positives_ab1"] != 0)
-            & (self.df_clusters["positives_ab2"] != 0)
-            & (self.df_clusters["positives_double"] != 0)
+        self.df_filtered1 = self.df_filtered1[
+            (self.df_filtered1["positives_ab1"] != 0)
+            & (self.df_filtered1["positives_ab2"] != 0)
+            & (self.df_filtered1["positives_double"] != 0)
         ]
 
         # keep only relevant columns and so reduce size of the dataframe
         # this also defines the order of the dataframe
-        self.df_clusters = self.df_clusters[
+        self.df_filtered1 = self.df_filtered1[
             [
                 "group",
                 "sample_name",
@@ -178,21 +178,21 @@ class PICO:
         """
         This function extracts the unique groups, samples and colorpairs from the uploaded file and sends them to the ui to display the checkboxes, with these unique values as choices.
         """
-        self.groups = self.df_clusters["group"].unique().tolist()
-        self.samples = self.df_clusters["sample_name"].unique().tolist()
-        self.colorpairs = self.df_clusters["colorpair"].unique().tolist()
+        self.groups = self.df_filtered1["group"].unique().tolist()
+        self.samples = self.df_filtered1["sample_name"].unique().tolist()
+        self.colorpairs = self.df_filtered1["colorpair"].unique().tolist()
 
     def _calculate_couplexes(self):
         """
         After the calculation of the clusters and the filtering, the number of couplexes is calculated for each row.
         """
-        self.df_couplexes = calculate_couplexes(self.df_clusters)
+        self.df_couplexes = calculate_couplexes(self.df_filtered1)
 
     ###############################################
     # public functions
     ###############################################
 
-    def get_plot(self, groups: list, samples: list, colorpairs: list) -> ggplot:
+    def get_couplex_plot(self, groups: list, samples: list, colorpairs: list) -> ggplot:
         """
         This function plots the number of couplexes of the filtered dataframe, which is saved in self.df_filtered.
 
@@ -208,14 +208,14 @@ class PICO:
         # filtering for the ticked boxes
         # if no box of a column is ticked plotnine throws an error
         # this might be handeled differently in the future by displaying a funny image or so
-        self.df_filtered = pl.from_pandas(self.df_couplexes).filter(
+        self.df_filtered2 = pl.from_pandas(self.df_couplexes).filter(
             (pl.col("group").is_in(groups))
             & (pl.col("sample_name").is_in(samples))
             & (pl.col("colorpair").is_in(colorpairs))
         )
 
         p = (
-            ggplot(self.df_filtered, aes("sample_name", "couplexes"))
+            ggplot(self.df_filtered2, aes("sample_name", "couplexes"))
             + geom_violin(scale="width")
             # fix random_state to have the same jitter before and after filtering
             + geom_point(position=position_jitter(width=0.2, random_state=123))
@@ -223,4 +223,16 @@ class PICO:
             + facet_wrap("colorpair")
         )
 
+        return p
+
+    def get_lambda_range(self) -> ggplot:
+
+        df = pl.from_pandas(self.df_clusters).unpivot(
+            index=["group", "sample_name", "well", "colorpair"],
+            on=["lambda_ab1", "lambda_ab2"],
+            variable_name="antibody",
+            value_name="lambda_ab",
+        )
+
+        p = ggplot(df, aes(x="lambda_ab")) + geom_histogram(binwidth=0.01)
         return p

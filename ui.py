@@ -50,6 +50,7 @@ app_ui = ui.page_fluid(
                         multiple=False,
                         width="100%",
                     ),
+                    # ui.output_plot("render_lambda_range", height="70px"),
                     ui.input_slider(
                         "slider_lambda",
                         "Define valid \u03bb range. The suggested range is from 0.01 to 0.25.",

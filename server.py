@@ -89,6 +89,7 @@ def server(input: Inputs, output: Outputs, session: Session):
             # if no file is uploaded, the empty download csv will be called "nothing_processed.csv"
             yield pd.DataFrame().to_csv(index=False)
         else:
+            # this dataframe not completely unfiltered, lambda filter was still applied
             yield pico.df_couplexes.to_csv(index=False)
 
     # same as download above but with the filtered dataframe
@@ -99,7 +100,7 @@ def server(input: Inputs, output: Outputs, session: Session):
             yield pd.DataFrame().to_csv(index=False)
         else:
             # wirte_csv from polars needs to be used because the return dataframe is a polars dataframe in contrast to the other download function above
-            yield pico.df_filtered.write_csv()
+            yield pico.df_filtered2.write_csv()
 
     @reactive.Calc
     def plot_couplexes():
@@ -109,7 +110,7 @@ def server(input: Inputs, output: Outputs, session: Session):
             # so when downloaded, it'll be a white piece of paper
             return ggplot() + theme_void()
         else:
-            return pico.get_plot(
+            return pico.get_couplex_plot(
                 groups=input.filter_group(),
                 samples=input.filter_sample(),
                 colorpairs=input.filter_colorpair(),
@@ -135,3 +136,15 @@ def server(input: Inputs, output: Outputs, session: Session):
 
         # remove the temporary file after saving
         os.remove(tmpfile.name)
+
+    # this plot displays the total lambda range before any filtering
+    @output
+    @render.plot
+    def render_lambda_range():
+        pico = pico_instance.get()
+        if pico is None:
+            # this will just display an empty plot, when no file is uploaded
+            # so when downloaded, it'll be a white piece of paper
+            return ggplot() + theme_void()
+        else:
+            return pico.get_lambda_range()
