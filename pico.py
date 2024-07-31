@@ -1,17 +1,16 @@
 # python packages
 import pandas as pd
+import polars as pl
 import numpy as np
 
-from plotnine import ggplot, theme_void
+from plotnine import *
 
 # shiny packages
 from shiny.types import FileInfo
 
 # own functions
-# TODO: make some these privat functions of the class
 from cluster_calculation import calculate_clusters
 from couplex_calculation import calculate_couplexes
-from plots import eval_plot_c, plot_lambda_range
 
 
 class PICO:
@@ -21,6 +20,7 @@ class PICO:
         # extract the file name without the file ending
         self.file_name = file_info["name"].rsplit(".", 1)[0]
         # read the uploaded file
+        # TODO: change the dataframe format to polars, however, this will impact many of the functions of this class
         self.df = pd.read_csv(self.file_info["datapath"], sep=",", skiprows=1)
         # extract the plate format to identify the master mix volume
         self.plate_format = self.df["Plate type"].iloc[0]
@@ -31,7 +31,12 @@ class PICO:
         self._calculate_clusters()
         # some formatting
         # updates self.df_clusters
-        self._general_filtering_formatting()
+        self._general_formatting()
+        # some preliminary filtering
+        # updates self.df_clusters
+        self._general_filtering()
+        # identifies the available groups prior to any customized filtering
+        self._groups_choices()
         # calculates the number of couplexes per row
         # self.df_couplexes
         self._calculate_couplexes()
@@ -46,16 +51,10 @@ class PICO:
         """
         self.df_clusters = calculate_clusters(self.df)
 
-    # TODO: change that to polars, which makes it easier to oversee, I have the feeling pandas is messier
-    def _general_filtering_formatting(self):
+    def _general_formatting(self):
         """
-        This function does some filtering before the calculation of the clusters, which enables the calculation of the number of couplexes.
-        Furthermore, it helps clearing the formatting issue originating from the MultipleOccupany file to actually handle the dataframe
+        This function clears formatting issues originating from the MultipleOccupany file to actually handle the dataframe. Furthermore, it adds information like mastermix volume, dead volume and calculates lambda.
         """
-
-        #
-        # renamings
-        #
 
         # this converts the strange "µ" character into an "u", so that the column can be renamed
         # apparently, the MO file from the QIAcuity has two different "µ" used
@@ -83,10 +82,6 @@ class PICO:
             },
             axis=1,
         )
-
-        #
-        # addition of information
-        #
 
         # currently the QIAcuity has 8.5K or 26K partition plates and the mastermix volumes are 13 and 42 µl
         # if more plate formats are added, this would need to be changed
@@ -126,9 +121,10 @@ class PICO:
             - (self.df_clusters["positives_ab2"] + self.df_clusters["positives_double"])
         )
 
-        #
-        # filtering
-        #
+    def _general_filtering(self):
+        """
+        This function filters the calculated clusters before the calculation of the couplexes. It removes NTC samples, lambda values out of range, zero counts in the clusters requried for calculation of couplexes and reduces the dataframe to the actually relevant columns.
+        """
 
         # drop NTC because this can cause problems with calculations of no partition is positive
         # and the calculator files does not contain the sample NTC
@@ -178,6 +174,14 @@ class PICO:
             ]
         ]
 
+    def _groups_choices(self):
+        """
+        This function extracts the unique groups, samples and colorpairs from the uploaded file and sends them to the ui to display the checkboxes, with these unique values as choices.
+        """
+        self.groups = self.df_clusters["group"].unique().tolist()
+        self.samples = self.df_clusters["sample_name"].unique().tolist()
+        self.colorpairs = self.df_clusters["colorpair"].unique().tolist()
+
     def _calculate_couplexes(self):
         """
         After the calculation of the clusters and the filtering, the number of couplexes is calculated for each row.
@@ -188,12 +192,44 @@ class PICO:
     # public functions
     ###############################################
 
-    def get_data(self):
+    def get_couplexes(self) -> pd.DataFrame:
+        """
+        This functions returns the dataframe containing the all results.
+
+        Returns:
+            pd.DataFrame: final dataframe after formatting, filtering and couplex calculation
+        """
         return self.df_couplexes
 
-    def get_plot(self):
-        if self.df_couplexes.empty:
-            return ggplot() + theme_void()
-        else:
-            return eval_plot_c(self.df_couplexes)
-            # return plot_lambda_range(self.df_couplexes)
+    def get_plot(self, groups: list, samples: list, colorpairs: list) -> ggplot:
+        """
+        This function plots the number of couplexes of the filtered dataframe.
+
+        Args:
+            groups (list): groups to be included in the plot
+            samples (list): samples to be included in the plot
+            colorpairs (list): colorpairs to be included in the plot
+
+        Returns:
+            ggplot: plot with the number of couplexes
+        """
+
+        # filtering for the ticked boxes
+        # if no box of a column is ticked plotnine throws an error
+        # this might be handeled differently in the future by displaying a funny image or so
+        df = pl.from_pandas(self.df_couplexes).filter(
+            (pl.col("group").is_in(groups))
+            & (pl.col("sample_name").is_in(samples))
+            & (pl.col("colorpair").is_in(colorpairs))
+        )
+
+        p = (
+            ggplot(df, aes("sample_name", "couplexes"))
+            + geom_violin(scale="width")
+            # fix random_state to have the same jitter before and after filtering
+            + geom_point(position=position_jitter(width=0.2, random_state=123))
+            + labs(x="Sample", y="Number of couplexes")
+            + facet_wrap("colorpair")
+        )
+
+        return p

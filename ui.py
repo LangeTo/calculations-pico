@@ -52,11 +52,13 @@ app_ui = ui.page_fluid(
                     ),
                     ui.input_slider(
                         "slider_lambda",
-                        "Define valid \u03bb range. The suggested range is from 0.01 to 0.25",
+                        "Define valid \u03bb range. The suggested range is from 0.01 to 0.25.",
                         min=0,
                         max=1,
                         value=[0.01, 0.25],
                     ),
+                    # this renders the filter boxes after the upload of a file
+                    ui.output_ui("dynamic_checkboxes"),
                     ui.download_button("download_data", "Download processed data"),
                 ),
                 # CSS width of sidebar
@@ -90,5 +92,7 @@ app_ui = ui.page_fluid(
     ui.include_css(app_dir / "styles.css"),
     # change the theme of the entire app
     # may also be customized later on
+    # https://shiny.posit.co/r/getstarted/build-an-app/customizing-ui/theming.html
+    # https://bootswatch.com/
     theme=shinyswatch.theme.vapor,
 )

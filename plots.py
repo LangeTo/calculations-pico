@@ -8,22 +8,6 @@ from plotnine import *
 from helpers import format_for_lambda_plot
 
 
-# TODO: customize theme
-# TODO: selectively plot some samples, make the plot more customizable
-# TODO: make a tooltip, which tells the individual values when hovering
-def eval_plot_c(df):
-
-    p = (
-        ggplot(df, aes("sample_name", "couplexes"))
-        + geom_violin(scale="width")
-        + geom_point(position=position_jitter(width=0.2))
-        + labs(x="Sample", y="Number of couplexes")
-        + facet_wrap("colorpair")
-    )
-
-    return p
-
-
 def plot_lambda_range(df, min_lambda=0.01, additional_space=0.1, num_x_ticks=4):
     """
     This functions plots the lambda ranges of each experimental group, sample and antibody. Because some PICO experiments have an inherent redundancy as one antibody may be used in multiple antibody combinations, this plot will contain redundant information, too, i.e. some lambda ranges are plotted twice. However, the combination of two antibodies is unique. First, the function calls another function to format the data and then plots the lambda ranges using plotnine.

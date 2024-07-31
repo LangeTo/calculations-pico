@@ -7,7 +7,7 @@ import pandas as pd
 from plotnine import ggplot, theme_void
 
 # shiny packages
-from shiny import Inputs, Outputs, Session, reactive, render
+from shiny import Inputs, Outputs, Session, reactive, render, ui
 from shiny.types import FileInfo
 
 # class
@@ -37,6 +37,39 @@ def server(input: Inputs, output: Outputs, session: Session):
                 PICO(file_info=file[0], lambda_filter=input.slider_lambda())
             )
 
+    # dynamically renders the checkboxes for filtering
+    @output
+    @render.ui
+    def dynamic_checkboxes():
+        pico = pico_instance.get()
+        if pico is None:
+            # if nothing is uploaded, it returns an empty HTML element
+            return ui.HTML("")
+        else:
+            # if an object of the PICO class was generated it returns the checkboxes for groups, samples and colorpairs
+            return (
+                ui.layout_columns(
+                    ui.input_checkbox_group(
+                        "filter_group",
+                        "Select groups:",
+                        choices=pico.groups,
+                        selected=pico.groups,
+                    ),
+                    ui.input_checkbox_group(
+                        "filter_sample",
+                        "Select samples:",
+                        choices=pico.samples,
+                        selected=pico.samples,
+                    ),
+                    ui.input_checkbox_group(
+                        "filter_colorpair",
+                        "Select colorpairs:",
+                        choices=pico.colorpairs,
+                        selected=pico.colorpairs,
+                    ),
+                ),
+            )
+
     # extrac the file name of the original file to make it available for the download
     @reactive.Calc
     def extract_filename():
@@ -53,7 +86,7 @@ def server(input: Inputs, output: Outputs, session: Session):
         pico = pico_instance.get()
         if pico is None:
             return pd.DataFrame()
-        return pico.get_data()
+        return pico.get_couplexes()
 
     # download function
     # lambda is necessary to use the reactive function for the generation of the filename
@@ -64,17 +97,21 @@ def server(input: Inputs, output: Outputs, session: Session):
             # if no file is uploaded, the empty download csv will be called "nothing_processed.csv"
             yield pd.DataFrame().to_csv(index=False)
         else:
-            yield pico.get_data().to_csv(index=False)
+            yield pico.get_couplexes().to_csv(index=False)
 
     @reactive.Calc
     def plot_couplexes():
-        pico = pico = pico_instance.get()
+        pico = pico_instance.get()
         if pico is None:
             # this will just display an empty plot, when no file is uploaded
             # so when downloaded, it'll be a white piece of paper
             return ggplot() + theme_void()
         else:
-            return pico.get_plot()
+            return pico.get_plot(
+                groups=input.filter_group(),
+                samples=input.filter_sample(),
+                colorpairs=input.filter_colorpair(),
+            )
 
     # calls plot_couplexes to plot the data
     @output
