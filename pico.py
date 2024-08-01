@@ -7,6 +7,7 @@ from plotnine import *
 
 # shiny packages
 from shiny.types import FileInfo
+from shinyswatch.theme import minty as shiny_theme
 
 # own functions
 from cluster_calculation import calculate_clusters
@@ -92,14 +93,14 @@ class PICO:
         # if there is no matching value, it returns false and no dead volume compensation will be done by the calculate_couplexes function
         for key in qiacuity_info:
             if key in self.plate_format:
-                vol = qiacuity_info[key]
+                self.vol = qiacuity_info[key]
             else:
                 # don't know yet where to show this message, it is also just a warning no error because the calculation still works
                 msg_vol = "The number of couplexes was not corrected by the fraction of the dead volume (i.e. dead_volume = mastermix_volume - volume_per_well)."
-                vol = False
+                self.vol = False
 
         # add master mix and dead volume to dataframe
-        self.df_clusters["mastermix_volume"] = vol
+        self.df_clusters["mastermix_volume"] = self.vol
         self.df_clusters["dead_volume"] = (
             self.df_clusters["mastermix_volume"] - self.df_clusters["volume_per_well"]
         )
@@ -216,11 +217,30 @@ class PICO:
 
         p = (
             ggplot(self.df_filtered2, aes("sample_name", "couplexes"))
-            + geom_violin(scale="width")
+            + geom_violin(scale="width", color=shiny_theme.colors.dark)
             # fix random_state to have the same jitter before and after filtering
-            + geom_point(position=position_jitter(width=0.2, random_state=123))
-            + labs(x="Sample", y="Number of couplexes")
+            + geom_point(
+                position=position_jitter(width=0.2, random_state=123),
+                size=3,
+                color=shiny_theme.colors.primary,
+            )
+            + labs(
+                x="Sample",
+                y=f"Number of couplexes in {self.vol} ul",
+            )
             + facet_wrap("colorpair")
+            + theme(
+                # remove background from facets
+                panel_background=element_blank(),
+                # remove x ticks
+                axis_ticks_major_x=element_blank(),
+                # adjust color of y ticks
+                axis_ticks_major_y=element_line(color=shiny_theme.colors.dark),
+                # background color of facet labels
+                strip_background=element_rect(fill=shiny_theme.colors.secondary),
+                # color of all the text
+                text=element_text(color=shiny_theme.colors.dark),
+            )
         )
 
         return p
@@ -234,5 +254,19 @@ class PICO:
             value_name="lambda_ab",
         )
 
-        p = ggplot(df, aes(x="lambda_ab")) + geom_histogram(binwidth=0.01)
+        p = (
+            ggplot(df, aes(x="lambda_ab"))
+            + geom_histogram(
+                binwidth=0.01,
+                fill=shiny_theme.colors.secondary,
+                color=shiny_theme.colors.secondary,
+            )
+            + theme(
+                axis_title=element_blank(),
+                axis_text_y=element_blank(),
+                axis_ticks=element_blank(),
+                panel_background=element_blank(),
+            )
+        )
+
         return p

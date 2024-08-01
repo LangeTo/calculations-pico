@@ -50,13 +50,15 @@ app_ui = ui.page_fluid(
                         multiple=False,
                         width="100%",
                     ),
-                    # ui.output_plot("render_lambda_range", height="70px"),
-                    ui.input_slider(
-                        "slider_lambda",
-                        "Define valid \u03bb range. The suggested range is from 0.01 to 0.25.",
-                        min=0,
-                        max=1,
-                        value=[0.01, 0.25],
+                    ui.card(
+                        ui.output_plot("render_lambda_range", height="100px"),
+                        ui.input_slider(
+                            "slider_lambda",
+                            "Define valid \u03bb range. The suggested range is from 0.01 to 0.25.",
+                            min=0,
+                            max=1,
+                            value=[0.01, 0.25],
+                        ),
                     ),
                     # this renders the filter boxes after the upload of a file
                     ui.output_ui("dynamic_checkboxes"),
@@ -105,5 +107,8 @@ app_ui = ui.page_fluid(
     # may also be customized later on
     # https://shiny.posit.co/r/getstarted/build-an-app/customizing-ui/theming.html
     # https://bootswatch.com/
-    theme=shinyswatch.theme.vapor,
+    # once the issue with the customization of the theme is solved:
+    # https://forum.posit.co/t/compileerror-when-trying-to-customize-a-shiny-theme/189700
+    # the font shall become the one from shinyswatch.theme.pulse
+    theme=shinyswatch.theme.minty,
 )
