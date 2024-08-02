@@ -14,6 +14,8 @@ from shiny.types import FileInfo
 # class
 from pico import PICO
 
+from helpers import round_up
+
 
 def server(input: Inputs, output: Outputs, session: Session):
 
@@ -37,6 +39,12 @@ def server(input: Inputs, output: Outputs, session: Session):
             pico_instance.set(
                 PICO(file_info=file[0], lambda_filter=input.slider_lambda())
             )
+
+            pico = pico_instance.get()
+            ui.update_slider(
+                "slider_lambda",
+                max=round_up(pico.max_lambda, 1),
+            ),
 
     # dynamically renders the checkboxes for filtering
     @output

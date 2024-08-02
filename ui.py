@@ -1,10 +1,10 @@
-# shiny pacakges
+# python packages
+from pathlib import Path
+
+# shiny packages
 import shinyswatch
 
 from shiny import ui
-
-# own functions
-from paths import app_dir
 
 
 app_ui = ui.page_fluid(
@@ -102,7 +102,7 @@ app_ui = ui.page_fluid(
             ),
         ),
     ),
-    ui.include_css(app_dir / "styles.css"),
+    ui.include_css(Path(__file__).parent / "styles.css"),
     # change the theme of the entire app
     # may also be customized later on
     # https://shiny.posit.co/r/getstarted/build-an-app/customizing-ui/theming.html

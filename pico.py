@@ -12,6 +12,7 @@ from shinyswatch.theme import minty as shiny_theme
 # own functions
 from cluster_calculation import calculate_clusters
 from couplex_calculation import calculate_couplexes
+from helpers import round_up
 
 
 class PICO:
@@ -26,18 +27,29 @@ class PICO:
         # extract the plate format to identify the master mix volume
         self.plate_format = self.df["Plate type"].iloc[0]
         # get the minimal and maximal lambda values for filtering from the slider
-        self.min_lambda, self.max_lambda = lambda_filter
+        self.min_lambda_set, self.max_lambda_set = lambda_filter
+
         # calculate the clusters of the 2 dimensional dPCR data
-        # self.df_clusters
+        # returns self.df_clusters
         self._calculate_clusters()
+
         # some formatting
         # updates self.df_clusters
         self._general_formatting()
+
+        # prepares data for lambda range plot in the sidebar
+        # returns self.df_lambda
+        self._format_for_lambda()
+        self.min_lambda = self.df_lambda["lambda_ab"].min()
+        self.max_lambda = self.df_lambda["lambda_ab"].max()
+
         # some preliminary filtering
-        # updates self.df_clusters
+        # returns self.df_filtered1
         self._general_filtering()
+
         # identifies the available groups prior to any customized filtering
         self._groups_choices()
+
         # calculates the number of couplexes per row
         # self.df_couplexes
         self._calculate_couplexes()
@@ -137,12 +149,12 @@ class PICO:
         # filter for the relevant lambda values that can be defined by a slider
         self.df_filtered1 = self.df_filtered1[
             (
-                (self.df_filtered1["lambda_ab1"] >= self.min_lambda)
-                & (self.df_filtered1["lambda_ab1"] <= self.max_lambda)
+                (self.df_filtered1["lambda_ab1"] >= self.min_lambda_set)
+                & (self.df_filtered1["lambda_ab1"] <= self.max_lambda_set)
             )
             & (
-                (self.df_filtered1["lambda_ab2"] >= self.min_lambda)
-                & (self.df_filtered1["lambda_ab2"] <= self.max_lambda)
+                (self.df_filtered1["lambda_ab2"] >= self.min_lambda_set)
+                & (self.df_filtered1["lambda_ab2"] <= self.max_lambda_set)
             )
         ]
 
@@ -188,6 +200,15 @@ class PICO:
         After the calculation of the clusters and the filtering, the number of couplexes is calculated for each row.
         """
         self.df_couplexes = calculate_couplexes(self.df_filtered1)
+
+    def _format_for_lambda(self):
+
+        self.df_lambda = pl.from_pandas(self.df_clusters).unpivot(
+            index=["group", "sample_name", "well", "colorpair"],
+            on=["lambda_ab1", "lambda_ab2"],
+            variable_name="antibody",
+            value_name="lambda_ab",
+        )
 
     ###############################################
     # public functions
@@ -247,20 +268,14 @@ class PICO:
 
     def get_lambda_range(self) -> ggplot:
 
-        df = pl.from_pandas(self.df_clusters).unpivot(
-            index=["group", "sample_name", "well", "colorpair"],
-            on=["lambda_ab1", "lambda_ab2"],
-            variable_name="antibody",
-            value_name="lambda_ab",
-        )
-
         p = (
-            ggplot(df, aes(x="lambda_ab"))
+            ggplot(self.df_lambda, aes(x="lambda_ab"))
             + geom_histogram(
                 binwidth=0.01,
                 fill=shiny_theme.colors.secondary,
                 color=shiny_theme.colors.secondary,
             )
+            + scale_x_continuous(limits=[0, round_up(self.max_lambda, 1)])
             + theme(
                 axis_title=element_blank(),
                 axis_text_y=element_blank(),

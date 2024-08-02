@@ -1,4 +1,5 @@
-import numpy as np
+import math
+
 import polars as pl
 
 # this function originates from my AMULATOR_offline
@@ -87,3 +88,9 @@ def format_for_lambda_plot(df, min_lambda=0.01):
     )
 
     return df_segments, df_points
+
+
+# https://www.knowledgehut.com/blog/programming/python-rounding-numbers
+def round_up(n, decimals=0):
+    multiplier = 10**decimals
+    return math.ceil(n * multiplier) / multiplier
