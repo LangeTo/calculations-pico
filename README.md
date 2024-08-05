@@ -11,10 +11,13 @@ compatible with QIAcuity Software Suite 2.5.0.1
 
 ```mermaid
 graph TD;
-    A-->B;
-    A-->C;
-    B-->D;
-    C-->D;
+    A(Upload and read csv)-->|_calculate_clusters|B(self.df_clusters);
+    B-->|_general_formatting|C(self.df_clusters_formatted);
+    C-->|_general_filtering|D(self.df_filtered1);
+    D-->|_format_for_lambda|E(self.df_lambda);
+    E-->|get_lambda_range|F(histogram of overall λ range);
+    D-->|_calculate_couplexes|H(self.df_couplexes);
+
 ```
 
 <!-- (re)deploying the app

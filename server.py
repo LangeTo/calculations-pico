@@ -23,7 +23,7 @@ def server(input: Inputs, output: Outputs, session: Session):
     pico_instance = reactive.Value(None)
 
     @reactive.Effect
-    @reactive.event(input.file1, input.slider_lambda)
+    @reactive.event(input.file1, input.slider_lambda, input.lambda_filter)
     def _():
         # file can either be a list of FileInfo or None
         # in this specific case only one file can be uploaded so that file[0] contains the FileInfo for the uploaded file
@@ -37,9 +37,9 @@ def server(input: Inputs, output: Outputs, session: Session):
             # create an object of the class PICO with the information from file[0]
             # use the slider_lambda to set min and max values of lambda and filter the dataframe accordingly
             pico_instance.set(
-                PICO(file_info=file[0], lambda_filter=input.slider_lambda())
+                PICO(file_info=file[0]),
             )
-
+            # update the slider to the up rounded maximal lambda
             pico = pico_instance.get()
             ui.update_slider(
                 "slider_lambda",

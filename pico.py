@@ -16,39 +16,46 @@ from helpers import round_up
 
 
 class PICO:
-    def __init__(self, file_info: FileInfo, lambda_filter: tuple):
+    def __init__(
+        self,
+        file_info: FileInfo,
+        # filter_values_lambda: tuple,
+        # lambda_filter: bool
+    ):
         # save the file_info
         self.file_info = file_info
+
         # extract the file name without the file ending
+        # needed for the names of the downloads
         self.file_name = file_info["name"].rsplit(".", 1)[0]
+
         # read the uploaded file
-        # TODO: change the dataframe format to polars, however, this will impact many of the functions of this class
+        # this is the raw data and it is in pandas
         self.df = pd.read_csv(self.file_info["datapath"], sep=",", skiprows=1)
+
         # extract the plate format to identify the master mix volume
-        self.plate_format = self.df["Plate type"].iloc[0]
-        # get the minimal and maximal lambda values for filtering from the slider
-        self.min_lambda_set, self.max_lambda_set = lambda_filter
+        self.plate_format = self.df["Plate type"][0]
 
         # calculate the clusters of the 2 dimensional dPCR data
-        # returns self.df_clusters
-        self._calculate_clusters()
+        self.df_clusters = self._calculate_clusters()
 
-        # some formatting
-        # updates self.df_clusters
-        self._general_formatting()
+        # column renamings, add mastermix volume and lambda calculation
+        self.df_clusters_formatted = self._general_formatting()
+
+        # remove NTC and if any population contains no positive partitions
+        # also remove unnecessary columns to reduce dataframe complexity/width
+        self.df_filtered1 = self._general_filtering()
 
         # prepares data for lambda range plot in the sidebar
-        # returns self.df_lambda
-        self._format_for_lambda()
+        self.df_lambda = self._format_for_lambda()
+        # extract minimal and maximal lambda values for limits in plots
         self.min_lambda = self.df_lambda["lambda_ab"].min()
         self.max_lambda = self.df_lambda["lambda_ab"].max()
 
-        # some preliminary filtering
-        # returns self.df_filtered1
-        self._general_filtering()
-
-        # identifies the available groups prior to any customized filtering
-        self._groups_choices()
+        # identifies the available groups, samples and colorparis for filtering in the ui
+        self.groups = self.df_filtered1["group"].unique().tolist()
+        self.samples = self.df_filtered1["sample_name"].unique().tolist()
+        self.colorpairs = self.df_filtered1["colorpair"].unique().tolist()
 
         # calculates the number of couplexes per row
         # self.df_couplexes
@@ -58,33 +65,40 @@ class PICO:
     # private functions
     ###############################################
 
-    def _calculate_clusters(self):
+    def _calculate_clusters(self) -> pl.DataFrame:
         """
-        This function calculates the number of positive partitions for all possible combinations of antibodies. this generates the 2d dPCR data needed for all later processing steps.
-        """
-        self.df_clusters = calculate_clusters(self.df)
+        This function calculates the number of positive partitions for all possible combinations of antibodies. This generates the 2d dPCR data needed for all later processing steps.
 
-    def _general_formatting(self):
+        Returns:
+            pl.DataFrame: a dataframe containing the calculated clusters for all possible antibody combinations
         """
-        This function clears formatting issues originating from the MultipleOccupany file to actually handle the dataframe. Furthermore, it adds information like mastermix volume, dead volume and calculates lambda.
-        """
+        # self.df is a pandas dataframe
+        # the logic of calculate clusters is based on pandas
+        # TODO: this should be changed to a polars logic
+        # instead, however, the pandas dataframe is afterwards translated to polars and returned
+        df = calculate_clusters(self.df)
 
-        # this converts the strange "µ" character into an "u", so that the column can be renamed
-        # apparently, the MO file from the QIAcuity has two different "µ" used
-        # at least that's the information I could obtain running this code to check the ordinals of the column names
+        df = pl.from_pandas(df)
+
+        return df
+
+    def _general_formatting(self) -> pl.DataFrame:
+        """
+        This function clears formatting issues originating from the MultipleOccupany file to actually handle the dataframe. Furthermore, it adds information like mastermix volume, dead volume and calculates lambdas for both antibodies.
+
+        Returns:
+            pl.DataFrame: a formatted dataframe with further information based on the input
+        """
+        df = self.df_clusters
+        # apparently the MO file from the QIAcuity has two different "µ":
         # for col in df_extrac.columns:
         # print(col, [ord(char) for char in col])
-        # the next two lines however, remove all the strange characters and replace them by "u"
-        self.df_clusters.columns = self.df_clusters.columns.str.replace(
-            "μ", "u", regex=True
-        )
-        self.df_clusters.columns = [
-            col.replace(chr(181), "u") for col in self.df_clusters.columns
+        # replace "µ" with "u" in column names
+        # "µ" is once used as with the decimal code 956 and the other times with 181
+        new_columns = [
+            col.replace(chr(956), "u").replace(chr(181), "u") for col in df.columns
         ]
-
-        # rename columns for consistent naming
-        # eg use underscores and no caps and no special characters, which come from the QIAcuity output
-        self.df_clusters = self.df_clusters.rename(
+        df = df.rename({old: new for old, new in zip(df.columns, new_columns)}).rename(
             {
                 "Count categories": "positives_double",
                 "Sample name": "sample_name",
@@ -93,7 +107,6 @@ class PICO:
                 "Valid partitions": "valid_partitions",
                 "Volume per well [uL]": "volume_per_well",
             },
-            axis=1,
         )
 
         # currently the QIAcuity has 8.5K or 26K partition plates and the mastermix volumes are 13 and 42 µl
@@ -111,65 +124,54 @@ class PICO:
                 msg_vol = "The number of couplexes was not corrected by the fraction of the dead volume (i.e. dead_volume = mastermix_volume - volume_per_well)."
                 self.vol = False
 
-        # add master mix and dead volume to dataframe
-        self.df_clusters["mastermix_volume"] = self.vol
-        self.df_clusters["dead_volume"] = (
-            self.df_clusters["mastermix_volume"] - self.df_clusters["volume_per_well"]
+        df = df.with_columns(
+            [
+                # add master mix volume
+                pl.lit(self.vol).alias("mastermix_volume"),
+                # add dead volume
+                (pl.lit(self.vol) - pl.col("volume_per_well")).alias("dead_volume"),
+                # add lambda of antibody 1
+                (
+                    pl.col("valid_partitions").log()
+                    - (
+                        pl.col("valid_partitions")
+                        - pl.col("positives_ab1")
+                        - pl.col("positives_double")
+                    ).log()
+                ).alias("lambda_ab1"),
+                # add lambda of antibody 2
+                (
+                    pl.col("valid_partitions").log()
+                    - (
+                        pl.col("valid_partitions")
+                        - pl.col("positives_ab2")
+                        - pl.col("positives_double")
+                    ).log()
+                ).alias("lambda_ab2"),
+            ]
         )
 
-        # calculate the lambda of both antibodies
-        # the number of double positive partitions needs to be added
-        # because "positives_ab1" and "positives_ab1" contain the number of single positive partitions
-        # np.log provides vectorized operations, while math.log does not
-        self.df_clusters["lambda_ab1"] = np.log(
-            self.df_clusters["valid_partitions"]
-        ) - np.log(
-            self.df_clusters["valid_partitions"]
-            - (self.df_clusters["positives_ab1"] + self.df_clusters["positives_double"])
-        )
-        self.df_clusters["lambda_ab2"] = np.log(
-            self.df_clusters["valid_partitions"]
-        ) - np.log(
-            self.df_clusters["valid_partitions"]
-            - (self.df_clusters["positives_ab2"] + self.df_clusters["positives_double"])
-        )
+        return df
 
-    def _general_filtering(self):
+    def _general_filtering(self) -> pl.DataFrame:
         """
-        This function filters the calculated clusters before the calculation of the couplexes. It removes NTC samples, lambda values out of range, zero counts in the clusters requried for calculation of couplexes and reduces the dataframe to the actually relevant columns.
+        This function does some preliminary filtering, which otherwise would break some calculations. It removes NTC samples, zero counts in the clusters requried for calculation of couplexes and reduces the dataframe to the actually relevant columns.
+
+        Returns:
+            pl.DataFrame: the filtered dataframe
         """
 
-        # drop NTC because this can cause problems with calculations of no partition is positive
-        # and the calculator files does not contain the sample NTC
-        # this would result in the error "could not match samples"
-        self.df_filtered1 = self.df_clusters[
-            ~self.df_clusters["sample_name"].str.contains("NTC", case=True)
-        ]
-
-        # filter for the relevant lambda values that can be defined by a slider
-        self.df_filtered1 = self.df_filtered1[
-            (
-                (self.df_filtered1["lambda_ab1"] >= self.min_lambda_set)
-                & (self.df_filtered1["lambda_ab1"] <= self.max_lambda_set)
-            )
-            & (
-                (self.df_filtered1["lambda_ab2"] >= self.min_lambda_set)
-                & (self.df_filtered1["lambda_ab2"] <= self.max_lambda_set)
-            )
-        ]
-
-        # drop rows with 0 positives partitions,
-        # this can occur in dPCR and if will interfere with downstream calculations
-        # also the double positives cannot be 0, otherwise the np.argmin in _couplexes function cannot breaks
-        self.df_filtered1 = self.df_filtered1[
-            (self.df_filtered1["positives_ab1"] != 0)
-            & (self.df_filtered1["positives_ab2"] != 0)
-            & (self.df_filtered1["positives_double"] != 0)
-        ]
-
-        # keep only relevant columns and so reduce size of the dataframe
-        # this also defines the order of the dataframe
-        self.df_filtered1 = self.df_filtered1[
+        df = self.df_clusters_formatted.filter(
+            # drop NTC because this can cause problems with calculations of no partition is positive
+            ~pl.col("sample_name").str.contains("NTC"),
+            # drop rows with 0 positives partitions,
+            # this can occur in dPCR and if will interfere with downstream calculations
+            pl.col("positives_ab1") != 0,
+            pl.col("positives_ab2") != 0,
+            pl.col("positives_double") != 0,
+            # keep only relevant columns and so reduce size of the dataframe
+            # this also defines the order of the dataframe
+        ).select(
             [
                 "group",
                 "sample_name",
@@ -185,30 +187,33 @@ class PICO:
                 "lambda_ab2",
                 "positives_double",
             ]
-        ]
+        )
 
-    def _groups_choices(self):
+        return df
+
+    def _format_for_lambda(self) -> pl.DataFrame:
         """
-        This function extracts the unique groups, samples and colorpairs from the uploaded file and sends them to the ui to display the checkboxes, with these unique values as choices.
+        This function unpivots self.df_filtered1 to have all lambda values in the same column for the lambda range plot.
+
+        Returns:
+            pl.DataFrame: a dataframe with only one lambda column for the overall histogram
         """
-        self.groups = self.df_filtered1["group"].unique().tolist()
-        self.samples = self.df_filtered1["sample_name"].unique().tolist()
-        self.colorpairs = self.df_filtered1["colorpair"].unique().tolist()
+
+        # unpivot is the polars equivalent to tidyr::pivot_longer
+        df = self.df_filtered1.unpivot(
+            index=["group", "sample_name", "well", "colorpair"],
+            on=["lambda_ab1", "lambda_ab2"],
+            variable_name="antibody",
+            value_name="lambda_ab",
+        )
+
+        return df
 
     def _calculate_couplexes(self):
         """
         After the calculation of the clusters and the filtering, the number of couplexes is calculated for each row.
         """
         self.df_couplexes = calculate_couplexes(self.df_filtered1)
-
-    def _format_for_lambda(self):
-
-        self.df_lambda = pl.from_pandas(self.df_clusters).unpivot(
-            index=["group", "sample_name", "well", "colorpair"],
-            on=["lambda_ab1", "lambda_ab2"],
-            variable_name="antibody",
-            value_name="lambda_ab",
-        )
 
     ###############################################
     # public functions
@@ -285,3 +290,22 @@ class PICO:
         )
 
         return p
+
+    def lambda_filtering(self, lambda_filter: tuple):
+
+        # get the minimal and maximal lambda values for filtering from the slider
+        self.min_lambda_set, self.max_lambda_set = lambda_filter
+
+        # filter for the relevant lambda values
+        self.df_filtered1 = self.df_filtered1[
+            (
+                (self.df_filtered1["lambda_ab1"] >= self.min_lambda_set)
+                & (self.df_filtered1["lambda_ab1"] <= self.max_lambda_set)
+            )
+            & (
+                (self.df_filtered1["lambda_ab2"] >= self.min_lambda_set)
+                & (self.df_filtered1["lambda_ab2"] <= self.max_lambda_set)
+            )
+        ].copy()
+
+        self._calculate_couplexes()
