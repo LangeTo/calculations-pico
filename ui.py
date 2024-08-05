@@ -51,6 +51,10 @@ app_ui = ui.page_fluid(
                         width="100%",
                     ),
                     ui.card(
+                        ui.card_header("Filter for a valid \u03bb-range"),
+                        ui.input_checkbox(
+                            "lambda_filter", "Apply \u03bb filter", False
+                        ),
                         ui.output_plot("render_lambda_range", height="100px"),
                         ui.input_slider(
                             "slider_lambda",
