@@ -53,13 +53,12 @@ class PICO:
         self.max_lambda = self.df_lambda["lambda_ab"].max()
 
         # identifies the available groups, samples and colorparis for filtering in the ui
-        self.groups = self.df_filtered1["group"].unique().tolist()
-        self.samples = self.df_filtered1["sample_name"].unique().tolist()
-        self.colorpairs = self.df_filtered1["colorpair"].unique().tolist()
+        self.groups = self.df_filtered1["group"].unique().to_list()
+        self.samples = self.df_filtered1["sample_name"].unique().to_list()
+        self.colorpairs = self.df_filtered1["colorpair"].unique().to_list()
 
         # calculates the number of couplexes per row
-        # self.df_couplexes
-        self._calculate_couplexes()
+        self.df_couplexes = self._calculate_couplexes()
 
     ###############################################
     # private functions
@@ -213,7 +212,9 @@ class PICO:
         """
         After the calculation of the clusters and the filtering, the number of couplexes is calculated for each row.
         """
-        self.df_couplexes = calculate_couplexes(self.df_filtered1)
+        df = calculate_couplexes(self.df_filtered1)
+
+        return df
 
     ###############################################
     # public functions
@@ -235,14 +236,14 @@ class PICO:
         # filtering for the ticked boxes
         # if no box of a column is ticked plotnine throws an error
         # this might be handeled differently in the future by displaying a funny image or so
-        self.df_filtered2 = pl.from_pandas(self.df_couplexes).filter(
-            (pl.col("group").is_in(groups))
-            & (pl.col("sample_name").is_in(samples))
-            & (pl.col("colorpair").is_in(colorpairs))
-        )
+        # self.df_filtered2 = pl.from_pandas(self.df_couplexes).filter(
+        #     (pl.col("group").is_in(groups))
+        #     & (pl.col("sample_name").is_in(samples))
+        #     & (pl.col("colorpair").is_in(colorpairs))
+        # )
 
         p = (
-            ggplot(self.df_filtered2, aes("sample_name", "couplexes"))
+            ggplot(self.df_couplexes, aes("sample_name", "couplexes"))
             + geom_violin(scale="width", color=shiny_theme.colors.dark)
             # fix random_state to have the same jitter before and after filtering
             + geom_point(

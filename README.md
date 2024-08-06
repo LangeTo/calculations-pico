@@ -11,13 +11,24 @@ compatible with QIAcuity Software Suite 2.5.0.1
 
 ```mermaid
 graph TD;
+classDef sub opacity:0.5
+classDef note fill:#7f7f6e, stroke:#000000
     A(Upload and read csv)-->|_calculate_clusters|B(self.df_clusters);
     B-->|_general_formatting|C(self.df_clusters_formatted);
     C-->|_general_filtering|D(self.df_filtered1);
     D-->|_format_for_lambda|E(self.df_lambda);
     E-->|get_lambda_range|F(histogram of overall λ range);
     D-->|_calculate_couplexes|H(self.df_couplexes);
+    H-->|get_couplex_plot|I(violin plot of couplexes)
 
+    %% subgraph subA [" "]
+    %%     A
+    %%     noteA([I AM THE FIRST NOTE])
+    %% end
+
+    %% class subA sub
+
+    
 ```
 
 <!-- (re)deploying the app
