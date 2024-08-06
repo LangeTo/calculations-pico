@@ -1,6 +1,10 @@
 # Calculation of couplexes from PICO experiments
 
-compatible with QIAcuity Software Suite 2.5.0.1
+- compatible with QIAcuity Software Suite 2.5.0.1 only
+- sample names containing NTC will be removed
+- supported Nanoplate formats 8.5k (use 13µl master mix) and 26k (use 42µl master mix)
+- clusters with 0 counts are removed
+
 
 *more information on usage will follow*
 
