@@ -92,5 +92,24 @@ def format_for_lambda_plot(df, min_lambda=0.01):
 
 # https://www.knowledgehut.com/blog/programming/python-rounding-numbers
 def round_up(n, decimals=0):
+    """
+    Round up a number to a specified number of decimal places.
+
+    Parameters:
+    n (float): The number to be rounded up.
+    decimals (int): The number of decimal places to round up to. Default is 0.
+
+    Returns:
+    float: The number rounded up to the specified number of decimal places.
+
+    Example:
+    >>> round_up(2.123, 2)
+    2.13
+    >>> round_up(2.125, 2)
+    2.13
+    >>> round_up(2.125, 0)
+    3.0
+    """
+
     multiplier = 10**decimals
     return math.ceil(n * multiplier) / multiplier

@@ -50,22 +50,8 @@ app_ui = ui.page_fluid(
                         multiple=False,
                         width="100%",
                     ),
-                    ui.card(
-                        ui.card_header("Filter for a valid \u03bb-range"),
-                        ui.input_checkbox(
-                            "lambda_filter", "Apply \u03bb filter", False
-                        ),
-                        ui.output_plot("render_lambda_range", height="100px"),
-                        ui.input_slider(
-                            "slider_lambda",
-                            "Define valid \u03bb range. The suggested range is from 0.01 to 0.25.",
-                            min=0,
-                            max=1,
-                            value=[0.01, 0.25],
-                        ),
-                    ),
-                    # this renders the filter boxes after the upload of a file
-                    ui.output_ui("dynamic_checkboxes"),
+                    # this renders the filter boxes and the lambda filter after the upload of a file
+                    ui.output_ui("dynamic_filters"),
                     ui.layout_columns(
                         ui.download_button(
                             "download_data",

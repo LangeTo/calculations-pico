@@ -16,12 +16,9 @@ from helpers import round_up
 
 
 class PICO:
-    def __init__(
-        self,
-        file_info: FileInfo,
-        # filter_values_lambda: tuple,
-        # lambda_filter: bool
-    ):
+
+    def __init__(self, file_info: FileInfo):
+
         # save the file_info
         self.file_info = file_info
 
@@ -44,7 +41,7 @@ class PICO:
 
         # remove NTC and if any population contains no positive partitions
         # also remove unnecessary columns to reduce dataframe complexity/width
-        self.df_filtered1 = self._general_filtering()
+        self.df_filtered_prelim = self._general_filtering()
 
         # prepares data for lambda range plot in the sidebar
         self.df_lambda = self._format_for_lambda()
@@ -53,12 +50,16 @@ class PICO:
         self.max_lambda = self.df_lambda["lambda_ab"].max()
 
         # identifies the available groups, samples and colorparis for filtering in the ui
-        self.groups = self.df_filtered1["group"].unique().to_list()
-        self.samples = self.df_filtered1["sample_name"].unique().to_list()
-        self.colorpairs = self.df_filtered1["colorpair"].unique().to_list()
+        self.groups = self.df_filtered_prelim["group"].unique().to_list()
+        self.samples = self.df_filtered_prelim["sample_name"].unique().to_list()
+        self.colorpairs = self.df_filtered_prelim["colorpair"].unique().to_list()
 
         # calculates the number of couplexes per row
         self.df_couplexes = self._calculate_couplexes()
+
+        # by default the filtered dataframe is the same as the overall dataframe
+        # then upon activation of the lambda filter or changing the slider value, the lambda filters are applied and this changes the dataframe that is plotted
+        self.df_couplexes_filtered = self.df_couplexes
 
     ###############################################
     # private functions
@@ -192,35 +193,34 @@ class PICO:
 
     def _format_for_lambda(self) -> pl.DataFrame:
         """
-        This function unpivots self.df_filtered1 to have all lambda values in the same column for the lambda range plot.
+        This function unpivots self.df_filtered_prelim to have all lambda values in the same column for the lambda range plot.
 
         Returns:
             pl.DataFrame: a dataframe with only one lambda column for the overall histogram
         """
 
         # unpivot is the polars equivalent to tidyr::pivot_longer
-        df = self.df_filtered1.unpivot(
+        return self.df_filtered_prelim.unpivot(
             index=["group", "sample_name", "well", "colorpair"],
             on=["lambda_ab1", "lambda_ab2"],
             variable_name="antibody",
             value_name="lambda_ab",
         )
 
-        return df
-
-    def _calculate_couplexes(self):
+    def _calculate_couplexes(self) -> pl.DataFrame:
         """
         After the calculation of the clusters and the filtering, the number of couplexes is calculated for each row.
-        """
-        df = calculate_couplexes(self.df_filtered1)
 
-        return df
+        Returns:
+            pl.DataFrame: a dataframe with the couplexes calculated for all rows of the dataframe
+        """
+        return calculate_couplexes(self.df_filtered_prelim)
 
     ###############################################
     # public functions
     ###############################################
 
-    def get_couplex_plot(self, groups: list, samples: list, colorpairs: list) -> ggplot:
+    def get_couplex_plot(self, lambda_filter: bool = None) -> ggplot:
         """
         This function plots the number of couplexes of the filtered dataframe, which is saved in self.df_filtered.
 
@@ -242,8 +242,13 @@ class PICO:
         #     & (pl.col("colorpair").is_in(colorpairs))
         # )
 
+        # if lambda_filter is false (box not ticked), the raw dataframe with the couplexes from all rows is display, however, if the filter is applied, the dataframe used for plotting is the filtered one
+        df = self.df_couplexes
+        if lambda_filter:
+            df = self.df_couplexes_filtered
+
         p = (
-            ggplot(self.df_couplexes, aes("sample_name", "couplexes"))
+            ggplot(df, aes("sample_name", "couplexes"))
             + geom_violin(scale="width", color=shiny_theme.colors.dark)
             # fix random_state to have the same jitter before and after filtering
             + geom_point(
@@ -267,6 +272,8 @@ class PICO:
                 strip_background=element_rect(fill=shiny_theme.colors.secondary),
                 # color of all the text
                 text=element_text(color=shiny_theme.colors.dark),
+                # text on the secondary color shall be white just as in the shiny theme
+                strip_text=element_text(color=shiny_theme.colors.light),
             )
         )
 
@@ -292,21 +299,19 @@ class PICO:
 
         return p
 
-    def lambda_filtering(self, lambda_filter: tuple):
+    def lambda_filtering(self, filter_values_lambda: tuple):
+        """
+        This functions filters for the lambda values defined by the slider in the ui. This function updates self.df_couplexes_filtered.
 
+        Args:
+            filter_values_lambda (tuple): min and max value for filtering from the slider
+        """
         # get the minimal and maximal lambda values for filtering from the slider
-        self.min_lambda_set, self.max_lambda_set = lambda_filter
+        min_lambda_set, max_lambda_set = filter_values_lambda
 
-        # filter for the relevant lambda values
-        self.df_filtered1 = self.df_filtered1[
-            (
-                (self.df_filtered1["lambda_ab1"] >= self.min_lambda_set)
-                & (self.df_filtered1["lambda_ab1"] <= self.max_lambda_set)
-            )
-            & (
-                (self.df_filtered1["lambda_ab2"] >= self.min_lambda_set)
-                & (self.df_filtered1["lambda_ab2"] <= self.max_lambda_set)
-            )
-        ].copy()
-
-        self._calculate_couplexes()
+        self.df_couplexes_filtered = self.df_couplexes.filter(
+            pl.col("lambda_ab1") >= min_lambda_set,
+            pl.col("lambda_ab1") <= max_lambda_set,
+            pl.col("lambda_ab2") >= min_lambda_set,
+            pl.col("lambda_ab2") <= max_lambda_set,
+        )
