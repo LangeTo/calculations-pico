@@ -220,90 +220,79 @@ class PICO:
     # public functions
     ###############################################
 
-    def get_couplex_plot(self, lambda_filter: bool = None) -> ggplot:
+    def get_couplex_plot(
+        self, lambda_filter: bool, groups: tuple, samples: tuple, colorpairs: tuple
+    ) -> ggplot:
         """
         This function plots the number of couplexes of the filtered dataframe, which is saved in self.df_filtered.
 
         Args:
-            groups (list): groups to be included in the plot
-            samples (list): samples to be included in the plot
-            colorpairs (list): colorpairs to be included in the plot
+            lambda_filter (bool): true if the box apply lambda filter is ticked
+            groups (tuple): groups (reaction mixes from QIAcuity Software Suite) to be included in the plot
+            samples (tuple): samples to be included in the plot
+            colorpairs (tuple): colorpairs (antibody pairs) to be included in the plot
 
         Returns:
-            ggplot: plot with the number of couplexes
+            ggplot: violin plot with the number of couplexes
         """
 
-        # filtering for the ticked boxes
-        # if no box of a column is ticked plotnine throws an error
-        # this might be handeled differently in the future by displaying a funny image or so
-        # self.df_filtered2 = pl.from_pandas(self.df_couplexes).filter(
-        #     (pl.col("group").is_in(groups))
-        #     & (pl.col("sample_name").is_in(samples))
-        #     & (pl.col("colorpair").is_in(colorpairs))
-        # )
-
         # if lambda_filter is false (box not ticked), the raw dataframe with the couplexes from all rows is display, however, if the filter is applied, the dataframe used for plotting is the filtered one
+        # similarly, if groups, samples or colorpairs were filtered, the filtered dataframe is used
         df = self.df_couplexes
-        if lambda_filter:
+        if (
+            lambda_filter
+            or len(groups) != len(self.df_couplexes["group"].unique().to_list())
+            or len(samples) != len(self.df_couplexes["sample_name"].unique().to_list())
+            or len(colorpairs) != len(self.df_couplexes["colorpair"].unique().to_list())
+        ):
             df = self.df_couplexes_filtered
 
-        p = (
-            ggplot(df, aes("sample_name", "couplexes"))
-            + geom_violin(scale="width", color=shiny_theme.colors.dark)
-            # fix random_state to have the same jitter before and after filtering
-            + geom_point(
-                position=position_jitter(width=0.2, random_state=123),
-                size=3,
-                color=shiny_theme.colors.primary,
+        if df.is_empty():
+            # if the filtering results in an empty dataframe, a message is displayed
+            p = (
+                ggplot()
+                + annotate(
+                    "text",
+                    x=0.5,
+                    y=0.6,
+                    label="The current selection returns an empty dataframe.\nNothing to display :-(",
+                    ha="center",
+                    va="center",
+                    size=16,
+                    color=shiny_theme.colors.dark,
+                )
+                + theme_void()
             )
-            + labs(
-                x="Sample",
-                y=f"Number of couplexes in {self.vol} ul",
+        else:
+            p = (
+                ggplot(df, aes("sample_name", "couplexes"))
+                + geom_violin(scale="width", color=shiny_theme.colors.dark)
+                # fix random_state to have the same jitter before and after filtering
+                + geom_point(
+                    position=position_jitter(width=0.2, random_state=123),
+                    size=3,
+                    color=shiny_theme.colors.primary,
+                )
+                + labs(
+                    x="Sample",
+                    y=f"Number of couplexes in {self.vol} ul",
+                )
+                + facet_wrap("colorpair")
+                + theme(
+                    # remove background from facets
+                    panel_background=element_blank(),
+                    # remove x ticks
+                    axis_ticks_major_x=element_blank(),
+                    # adjust color of y ticks
+                    axis_ticks_major_y=element_line(color=shiny_theme.colors.dark),
+                    # background color of facet labels
+                    strip_background=element_rect(fill=shiny_theme.colors.secondary),
+                    # color of all the text
+                    text=element_text(color=shiny_theme.colors.dark),
+                    # text on the secondary color shall be white just as in the shiny theme
+                    strip_text=element_text(color=shiny_theme.colors.light),
+                )
             )
-            + facet_wrap("colorpair")
-            + theme(
-                # remove background from facets
-                panel_background=element_blank(),
-                # remove x ticks
-                axis_ticks_major_x=element_blank(),
-                # adjust color of y ticks
-                axis_ticks_major_y=element_line(color=shiny_theme.colors.dark),
-                # background color of facet labels
-                strip_background=element_rect(fill=shiny_theme.colors.secondary),
-                # color of all the text
-                text=element_text(color=shiny_theme.colors.dark),
-                # text on the secondary color shall be white just as in the shiny theme
-                strip_text=element_text(color=shiny_theme.colors.light),
-            )
-        )
-
-        # TODO: catch this error and display a better message:
-        # Traceback (most recent call last):
-        # File "C:\Users\tl100\.conda\envs\shi\Lib\site-packages\shiny\session\_session.py", line 1448, in output_obs
-        #     value = await renderer.render()
-        #             ^^^^^^^^^^^^^^^^^^^^^^^
-        # File "C:\Users\tl100\.conda\envs\shi\Lib\site-packages\shiny\render\_render.py", line 340, in render
-        #     ok, result = try_render_plotnine(
-        #                 ^^^^^^^^^^^^^^^^^^^^
-        # File "C:\Users\tl100\.conda\envs\shi\Lib\site-packages\shiny\render\_try_render_plot.py", line 370, in try_render_plotnine
-        #     res = x.save_helper(  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue, reportUnknownVariableType, reportGeneralTypeIssues]
-        #         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-        # File "C:\Users\tl100\.conda\envs\shi\Lib\site-packages\plotnine\ggplot.py", line 593, in save_helper
-        #     figure = self.draw(show=False)
-        #             ^^^^^^^^^^^^^^^^^^^^^
-        # File "C:\Users\tl100\.conda\envs\shi\Lib\site-packages\plotnine\ggplot.py", line 224, in draw
-        #     self._build()
-        # File "C:\Users\tl100\.conda\envs\shi\Lib\site-packages\plotnine\ggplot.py", line 310, in _build
-        #     layout.setup(layers, self)
-        # File "C:\Users\tl100\.conda\envs\shi\Lib\site-packages\plotnine\facets\layout.py", line 78, in setup
-        #     self.layout = self.facet.compute_layout(data)
-        #                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-        # File "C:\Users\tl100\.conda\envs\shi\Lib\site-packages\plotnine\facets\facet_wrap.py", line 103, in compute_layout
-        #     base = combine_vars(
-        #         ^^^^^^^^^^^^^
-        # File "C:\Users\tl100\.conda\envs\shi\Lib\site-packages\plotnine\facets\facet.py", line 544, in combine_vars
-        #     raise PlotnineError("Faceting variables must have at least one value")
-        # plotnine.exceptions.PlotnineError: 'Faceting variables must have at least one value'
 
         return p
 
@@ -350,7 +339,8 @@ class PICO:
             ggplot(df, aes(x="lambda_ab", fill="color_class", color="color_class"))
             + geom_histogram(binwidth=0.01, show_legend=False)
             # same maximal x values as the slider, obtained form the data and rounded up
-            + scale_x_continuous(limits=[0, round_up(self.max_lambda, 1)])
+            # min value below zero because middle of first bin is 0
+            + scale_x_continuous(limits=[-0.01, round_up(self.max_lambda, 1)])
             + scale_fill_manual(values=bin_colors)
             + scale_color_manual(values=bin_colors)
             # remove all labels, lines and text from the histogram to have a plain plot
@@ -364,21 +354,43 @@ class PICO:
 
         return p
 
-    def lambda_filtering(self, filter_values_lambda: tuple):
+    def filtering(
+        self,
+        lambda_filter: bool,
+        filter_values_lambda: tuple,
+        groups: tuple,
+        samples: tuple,
+        colorpairs: tuple,
+    ):
         """
-        This functions filters for the lambda values defined by the slider in the ui. This function updates self.df_couplexes_filtered.
+        This functions filters for the lambda values defined by the slider in the ui and for the ticked boxes in the checkboxes of group, sample and colorpair. This function updates self.df_couplexes_filtered.
 
         Args:
+            lambda_filter (bool): true if the box apply lambda filter is ticked
             filter_values_lambda (tuple): min and max value for filtering from the slider
+            groups (tuple): groups (reaction mixes from QIAcuity Software Suite) to be included in the plot
+            samples (tuple): samples to be included in the plot
+            colorpairs (tuple): colorpairs (antibody pairs) to be included in the plot
         """
-        # get the minimal and maximal lambda values for filtering from the slider
-        min_lambda_set, max_lambda_set = filter_values_lambda
+
+        # if lambda filtering is not applied minimal and maximal values from the dataframe itself are used (fake fitlering)
+        min_lambda_set = self.min_lambda
+        max_lambda_set = self.max_lambda
+
+        # however, when a lambda filter is applied, the filter values from the slider are used
+        if lambda_filter:
+            # get the minimal and maximal lambda values for filtering from the slider
+            min_lambda_set, max_lambda_set = filter_values_lambda
 
         self.df_couplexes_filtered = self.df_couplexes.filter(
             pl.col("lambda_ab1") >= min_lambda_set,
             pl.col("lambda_ab1") <= max_lambda_set,
             pl.col("lambda_ab2") >= min_lambda_set,
             pl.col("lambda_ab2") <= max_lambda_set,
+            # this following filter check if the values in columns are in the lists that come from the checkboxes
+            pl.col("group").is_in(groups),
+            pl.col("sample_name").is_in(samples),
+            pl.col("colorpair").is_in(colorpairs),
         )
 
         # calculate the number of filtered values

@@ -46,21 +46,36 @@ def server(input: Inputs, output: Outputs, session: Session):
             pico_instance.set(
                 PICO(file_info=file[0]),
             )
-            # update the slider to the up rounded maximal lambda
 
-    # this effect is watching for changes in the lambda control elements (box and slider)
-    # and updates the property df_couplexes_filtered of the pico_instance
+    # this effect is watching for changes in the lambda control elements (box and slider) and for changes in the checkboxes
+    # and updates the property df_couplexes_filtered of the pico_instance using pico.filtering()
     @reactive.Effect
-    @reactive.event(input.lambda_filter, input.slider_lambda)
+    @reactive.event(
+        input.lambda_filter,
+        input.slider_lambda,
+        input.filter_group,
+        input.filter_sample,
+        input.filter_colorpair,
+    )
     def _():
         pico = pico_instance.get()
         # obivously, this is only relevant if there is actually a file uploaded
         if pico is not None:
-            if input.lambda_filter():
-                # if the box is ticked, the lambda_filtering is applied and the df_couplexes_filtered is updated accordingly
-                pico.lambda_filtering(filter_values_lambda=input.slider_lambda())
+            # if any of these have a value it shall perform the filtering
+            if (
+                input.lambda_filter()
+                or input.filter_group()
+                or input.filter_sample()
+                or input.filter_colorpair()
+            ):
+                pico.filtering(
+                    lambda_filter=input.lambda_filter(),
+                    filter_values_lambda=input.slider_lambda(),
+                    groups=input.filter_group(),
+                    samples=input.filter_sample(),
+                    colorpairs=input.filter_colorpair(),
+                )
             else:
-                # if input.lambda_filter() is false, this default (set during the initialization is restored)
                 pico.df_couplexes_filtered = pico.df_couplexes
 
     # extrac the file name of the original file to make it available for the download
@@ -81,13 +96,25 @@ def server(input: Inputs, output: Outputs, session: Session):
             value=[0.01, 0.25],
         )
 
-    # this function is watching the lambda filter control elements to depending on any action it updates the message to be displayed
+    # this function is watching the lambda filter control elements and checkboxes to update the message with the number of values displayed
     @reactive.Calc
-    @reactive.event(input.lambda_filter, input.slider_lambda)
+    @reactive.event(
+        input.lambda_filter,
+        input.slider_lambda,
+        input.filter_group,
+        input.filter_sample,
+        input.filter_colorpair,
+    )
     def lambda_filter_message():
         pico = pico_instance.get()
-        if pico is not None and input.lambda_filter():
-            return ui.div(ui.HTML(pico.lambda_filter_msg))
+        if pico is not None:
+            if (
+                input.lambda_filter()
+                or input.filter_group()
+                or input.filter_sample()
+                or input.filter_colorpair()
+            ):
+                return ui.div(ui.HTML(pico.lambda_filter_msg))
         else:
             return ui.div(ui.HTML(""))
 
@@ -141,6 +168,8 @@ def server(input: Inputs, output: Outputs, session: Session):
                         value=[0.01, 0.25],
                     ),
                     ui.output_plot("render_lambda_range", height="100px"),
+                    # after depolying this on shinyapps.io, the labels of the plot were but, maybe this empty container improves the depiction
+                    ui.div(" "),
                 ),
                 # the default is that all groups, samples and colorpairs are selected
                 ui.card(
@@ -186,10 +215,15 @@ def server(input: Inputs, output: Outputs, session: Session):
     # Violin plots of couplexes
     ###############################################
 
-    # the plotting function needs to watch the inputs lambda_filter and slider_lambda
-    # otherwise the plot is not updated when the values are changed
+    # the plotting function needs to watch the inputs lambda_filter and slider_lambda as well as the checkboxes to be updated when something changed
     @reactive.Calc
-    @reactive.event(input.lambda_filter, input.slider_lambda)
+    @reactive.event(
+        input.lambda_filter,
+        input.slider_lambda,
+        input.filter_group,
+        input.filter_sample,
+        input.filter_colorpair,
+    )
     def plot_couplexes():
         pico = pico_instance.get()
         if pico is None:
@@ -197,7 +231,12 @@ def server(input: Inputs, output: Outputs, session: Session):
             # so when downloaded, it'll be a white piece of paper
             return ggplot() + theme_void()
         else:
-            return pico.get_couplex_plot(lambda_filter=input.lambda_filter())
+            return pico.get_couplex_plot(
+                lambda_filter=input.lambda_filter(),
+                groups=input.filter_group(),
+                samples=input.filter_sample(),
+                colorpairs=input.filter_colorpair(),
+            )
 
     # calls plot_couplexes to plot the data
     @output
