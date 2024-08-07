@@ -10,3 +10,10 @@
     align-items: center;
     justify-content: center;
 }
+
+/* customize tooltips */
+.tooltip-inner {
+    text-align: left;
+    max-width: 300px;
+    width: auto;
+}

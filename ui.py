@@ -6,6 +6,9 @@ import shinyswatch
 
 from shiny import ui
 
+# icons
+from icons import question_circle_fill
+
 
 app_ui = ui.page_fluid(
     ui.card(
@@ -45,7 +48,20 @@ app_ui = ui.page_fluid(
                 ui.card(
                     ui.input_file(
                         "file1",
-                        "Upload MultipleOccupancy file from QIAcuity Software Suite 2.5.0.1:",
+                        ui.tooltip(
+                            ui.span(
+                                "Upload MultipleOccupancy file: ",
+                                question_circle_fill,
+                            ),
+                            ui.span(
+                                "Currently supported files: ",
+                                ui.tags.ul(
+                                    ui.tags.li(
+                                        "MultipleOccupancy file (.csv) from QIAcuity Software Suite 2.5.0.1"
+                                    )
+                                ),
+                            ),
+                        ),
                         accept=[".csv"],
                         multiple=False,
                         width="100%",

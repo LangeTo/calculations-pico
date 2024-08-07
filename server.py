@@ -22,6 +22,10 @@ from helpers import round_up
 
 def server(input: Inputs, output: Outputs, session: Session):
 
+    ###############################################
+    # reactive variables and effects
+    ###############################################
+
     # central reactive variable for PICO instance
     pico_instance = reactive.Value(None)
 
@@ -59,6 +63,28 @@ def server(input: Inputs, output: Outputs, session: Session):
                 # if input.lambda_filter() is false, this default (set during the initialization is restored)
                 pico.df_couplexes_filtered = pico.df_couplexes
 
+    # extrac the file name of the original file to make it available for the download
+    @reactive.Calc
+    def extract_filename():
+        pico = pico_instance.get()
+        if pico is None:
+            # if no file is uploaded, the empty download csv will be called "nothing_processed.csv"
+            return "nothing"
+        return pico.file_name
+
+    # function for the action button to reset the lambda range to its initial status
+    @reactive.Effect
+    @reactive.event(input.reset_lambda)
+    def _():
+        return ui.update_slider(
+            "slider_lambda",
+            value=[0.01, 0.25],
+        )
+
+    ###############################################
+    # UI elements shown upon upload of a file
+    ###############################################
+
     # dynamically render the lambda filter and the checkboxes for filtering
     @output
     @render.ui
@@ -80,25 +106,39 @@ def server(input: Inputs, output: Outputs, session: Session):
                             "The suggested range is from 0.01 to 0.25.",
                         ),
                     ),
-                    ui.input_checkbox("lambda_filter", "Apply filter", False),
-                    ui.output_plot("render_lambda_range", height="100px"),
+                    ui.card(
+                        # control elements for the lambda filter
+                        ui.layout_columns(
+                            ui.input_checkbox("lambda_filter", "Apply filter", False),
+                            # this resets the filter values to the defaults
+                            ui.input_action_button("reset_lambda", "Reset filter"),
+                        ),
+                    ),
                     ui.input_slider(
                         "slider_lambda",
                         "Define valid \u03bb range.",
                         min=0,
-                        # maximal lambda, which is also used for the histogrom above
+                        # maximal lambda, which is also used for the histogram of the lambda range
                         max=round_up(pico.max_lambda, 1),
                         value=[0.01, 0.25],
                     ),
+                    ui.output_plot("render_lambda_range", height="100px"),
                 ),
                 # the default is that all groups, samples and colorpairs are selected
-                # TODO: actually implement the filtering logic, today these are just dummys
                 ui.card(
-                    ui.card_header("Select displayed items:"),
+                    ui.card_header(
+                        ui.tooltip(
+                            ui.span(
+                                "Select displayed items: ",
+                                question_circle_fill,
+                            ),
+                            "You defined these items in the QIAcuity Software Suite.",
+                        ),
+                    ),
                     ui.layout_columns(
                         ui.input_checkbox_group(
                             "filter_group",
-                            "Groups:",
+                            "Reaction mixes:",
                             choices=pico.groups,
                             selected=pico.groups,
                         ),
@@ -110,7 +150,13 @@ def server(input: Inputs, output: Outputs, session: Session):
                         ),
                         ui.input_checkbox_group(
                             "filter_colorpair",
-                            "Colorpairs:",
+                            ui.tooltip(
+                                ui.span(
+                                    "Colorpairs: ",
+                                    question_circle_fill,
+                                ),
+                                "A colorpair is a combination of two fluorescent detection channels of a dPCR system. Usually, there is one antibody detected per fluorescent detection channel. The combination of two antibodies of all antibodies used (maximal 4) generates the required 2-dimensional raw data for the calculation of the number of couplexes using the dDPCS model.",
+                            ),
                             choices=pico.colorpairs,
                             selected=pico.colorpairs,
                         ),
@@ -118,14 +164,28 @@ def server(input: Inputs, output: Outputs, session: Session):
                 ),
             )
 
-    # extrac the file name of the original file to make it available for the download
+    ###############################################
+    # Violin plots of couplexes
+    ###############################################
+
+    # the plotting function needs to watch the inputs lambda_filter and slider_lambda
+    # otherwise the plot is not updated when the values are changed
     @reactive.Calc
-    def extract_filename():
+    @reactive.event(input.lambda_filter, input.slider_lambda)
+    def plot_couplexes():
         pico = pico_instance.get()
         if pico is None:
-            # if no file is uploaded, the empty download csv will be called "nothing_processed.csv"
-            return "nothing"
-        return pico.file_name
+            # this will just display an empty plot, when no file is uploaded
+            # so when downloaded, it'll be a white piece of paper
+            return ggplot() + theme_void()
+        else:
+            return pico.get_couplex_plot(lambda_filter=input.lambda_filter())
+
+    # calls plot_couplexes to plot the data
+    @output
+    @render.plot
+    def render_plot_couplexes():
+        return plot_couplexes()
 
     # download function
     # lambda is necessary to use the reactive function for the generation of the filename
@@ -149,25 +209,6 @@ def server(input: Inputs, output: Outputs, session: Session):
             # wirte_csv from polars needs to be used because the return dataframe is a polars dataframe in contrast to the other download function above
             yield pico.df_couplexes_filtered.write_csv()
 
-    # the plotting function needs to watch the inputs lambda_filter and slider_lambda
-    # otherwise the plot is not updated when the values are changed
-    @reactive.Calc
-    @reactive.event(input.lambda_filter, input.slider_lambda)
-    def plot_couplexes():
-        pico = pico_instance.get()
-        if pico is None:
-            # this will just display an empty plot, when no file is uploaded
-            # so when downloaded, it'll be a white piece of paper
-            return ggplot() + theme_void()
-        else:
-            return pico.get_couplex_plot(lambda_filter=input.lambda_filter())
-
-    # calls plot_couplexes to plot the data
-    @output
-    @render.plot
-    def render_plot_couplexes():
-        return plot_couplexes()
-
     # calls plot_couplexes to prepare the plot for download
     @render.download(filename=lambda: f"{extract_filename()}_plot.pdf")
     def download_plot():
@@ -183,14 +224,30 @@ def server(input: Inputs, output: Outputs, session: Session):
         # remove the temporary file after saving
         os.remove(tmpfile.name)
 
-    # this plot displays the total lambda range before any filtering
-    @output
-    @render.plot
-    def render_lambda_range():
+    ###############################################
+    # histogram of lambda range in sidebar
+    ###############################################
+
+    # the plotting function needs to watch the inputs lambda_filter and slider_lambda
+    # otherwise the plot is not updated when the values are changed
+    @reactive.Calc
+    @reactive.event(input.lambda_filter, input.slider_lambda)
+    def plot_lambda_range():
         pico = pico_instance.get()
         if pico is None:
             # this will just display an empty plot, when no file is uploaded
-            # so when downloaded, it'll be a white piece of paper
             return ggplot() + theme_void()
         else:
-            return pico.get_lambda_range()
+            # this will generate the plot of the histogram
+            # if input.lambda_filter() is False, which is the default, there is no color formatting
+            # otherwise, this will color the bins of the histograms that are used in the violin plot of the couplexes green
+            return pico.get_lambda_range(
+                lambda_filter=input.lambda_filter(),
+                filter_values_lambda=input.slider_lambda(),
+            )
+
+    # calls plot_couplexes to plot the data
+    @output
+    @render.plot
+    def render_lambda_range():
+        return plot_lambda_range()

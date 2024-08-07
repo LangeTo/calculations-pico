@@ -1,7 +1,6 @@
 # python packages
 import pandas as pd
 import polars as pl
-import numpy as np
 
 from plotnine import *
 
@@ -28,6 +27,7 @@ class PICO:
 
         # read the uploaded file
         # this is the raw data and it is in pandas
+        # TODO: to change this I will have to change cluster_calculation.py because this depends on pandas and the polars logic is different in many cases, it's gonna be a tidious task
         self.df = pd.read_csv(self.file_info["datapath"], sep=",", skiprows=1)
 
         # extract the plate format to identify the master mix volume
@@ -277,18 +277,83 @@ class PICO:
             )
         )
 
+        # TODO: catch this error and display a better message:
+        # Traceback (most recent call last):
+        # File "C:\Users\tl100\.conda\envs\shi\Lib\site-packages\shiny\session\_session.py", line 1448, in output_obs
+        #     value = await renderer.render()
+        #             ^^^^^^^^^^^^^^^^^^^^^^^
+        # File "C:\Users\tl100\.conda\envs\shi\Lib\site-packages\shiny\render\_render.py", line 340, in render
+        #     ok, result = try_render_plotnine(
+        #                 ^^^^^^^^^^^^^^^^^^^^
+        # File "C:\Users\tl100\.conda\envs\shi\Lib\site-packages\shiny\render\_try_render_plot.py", line 370, in try_render_plotnine
+        #     res = x.save_helper(  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue, reportUnknownVariableType, reportGeneralTypeIssues]
+        #         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        # File "C:\Users\tl100\.conda\envs\shi\Lib\site-packages\plotnine\ggplot.py", line 593, in save_helper
+        #     figure = self.draw(show=False)
+        #             ^^^^^^^^^^^^^^^^^^^^^
+        # File "C:\Users\tl100\.conda\envs\shi\Lib\site-packages\plotnine\ggplot.py", line 224, in draw
+        #     self._build()
+        # File "C:\Users\tl100\.conda\envs\shi\Lib\site-packages\plotnine\ggplot.py", line 310, in _build
+        #     layout.setup(layers, self)
+        # File "C:\Users\tl100\.conda\envs\shi\Lib\site-packages\plotnine\facets\layout.py", line 78, in setup
+        #     self.layout = self.facet.compute_layout(data)
+        #                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        # File "C:\Users\tl100\.conda\envs\shi\Lib\site-packages\plotnine\facets\facet_wrap.py", line 103, in compute_layout
+        #     base = combine_vars(
+        #         ^^^^^^^^^^^^^
+        # File "C:\Users\tl100\.conda\envs\shi\Lib\site-packages\plotnine\facets\facet.py", line 544, in combine_vars
+        #     raise PlotnineError("Faceting variables must have at least one value")
+        # plotnine.exceptions.PlotnineError: 'Faceting variables must have at least one value'
+
         return p
 
-    def get_lambda_range(self) -> ggplot:
+    def get_lambda_range(
+        self, lambda_filter: bool = False, filter_values_lambda: tuple = None
+    ) -> ggplot:
+        """
+        This function plots the entire lambda range of the uploaded data and depending on the chosen lambda values, it colors the bins of the histogram based filter values from the slider.
+
+        Args:
+            lambda_filter (bool, optional): If false, no filtering applied. Defaults to False.
+            filter_values_lambda (tuple, optional): Minimal and maximal value for filtering, obtained from the input.slider_lambda() of the ui. Defaults to None.
+
+        Returns:
+            ggplot: A histogram of the lambda range with colored bins depending on input.slider_lambda().
+        """
+
+        if lambda_filter and filter_values_lambda:
+            # unpack the filter values
+            min_val, max_val = filter_values_lambda
+            # create a new column, which identifies the the color of the bin
+            df = self.df_lambda.with_columns(
+                pl.when(pl.col("lambda_ab") < min_val)
+                .then(pl.lit("below"))
+                .when(pl.col("lambda_ab") > max_val)
+                .then(pl.lit("above"))
+                .otherwise(pl.lit("within"))
+                .alias("color_class")
+            )
+
+            # use the theme colors for the bin colors
+            bin_colors = {
+                "below": shiny_theme.colors.secondary,
+                "within": shiny_theme.colors.primary,
+                "above": shiny_theme.colors.secondary,
+            }
+
+        # if no filtering, all bins have the same color
+        else:
+            df = self.df_lambda.with_columns(pl.lit("within").alias("color_class"))
+            bin_colors = {"within": shiny_theme.colors.secondary}
 
         p = (
-            ggplot(self.df_lambda, aes(x="lambda_ab"))
-            + geom_histogram(
-                binwidth=0.01,
-                fill=shiny_theme.colors.secondary,
-                color=shiny_theme.colors.secondary,
-            )
+            ggplot(df, aes(x="lambda_ab", fill="color_class", color="color_class"))
+            + geom_histogram(binwidth=0.01, show_legend=False)
+            # same maximal x values as the slider, obtained form the data and rounded up
             + scale_x_continuous(limits=[0, round_up(self.max_lambda, 1)])
+            + scale_fill_manual(values=bin_colors)
+            + scale_color_manual(values=bin_colors)
+            # remove all labels, lines and text from the histogram to have a plain plot
             + theme(
                 axis_title=element_blank(),
                 axis_text_y=element_blank(),
