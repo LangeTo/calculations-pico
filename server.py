@@ -81,6 +81,22 @@ def server(input: Inputs, output: Outputs, session: Session):
             value=[0.01, 0.25],
         )
 
+    # this function is watching the lambda filter control elements to depending on any action it updates the message to be displayed
+    @reactive.Calc
+    @reactive.event(input.lambda_filter, input.slider_lambda)
+    def lambda_filter_message():
+        pico = pico_instance.get()
+        if pico is not None and input.lambda_filter():
+            return ui.div(ui.HTML(pico.lambda_filter_msg))
+        else:
+            return ui.div(ui.HTML(""))
+
+    # this is the function to display the message in the ui.
+    @output
+    @render.ui
+    def render_lambda_filter_message():
+        return lambda_filter_message()
+
     ###############################################
     # UI elements shown upon upload of a file
     ###############################################
@@ -111,7 +127,9 @@ def server(input: Inputs, output: Outputs, session: Session):
                         ui.layout_columns(
                             ui.input_checkbox("lambda_filter", "Apply filter", False),
                             # this resets the filter values to the defaults
-                            ui.input_action_button("reset_lambda", "Reset filter"),
+                            ui.input_action_button(
+                                "reset_lambda", "Reset filter range"
+                            ),
                         ),
                     ),
                     ui.input_slider(
@@ -241,7 +259,7 @@ def server(input: Inputs, output: Outputs, session: Session):
             # this will generate the plot of the histogram
             # if input.lambda_filter() is False, which is the default, there is no color formatting
             # otherwise, this will color the bins of the histograms that are used in the violin plot of the couplexes green
-            return pico.get_lambda_range(
+            return pico.get_lambda_range_plot(
                 lambda_filter=input.lambda_filter(),
                 filter_values_lambda=input.slider_lambda(),
             )

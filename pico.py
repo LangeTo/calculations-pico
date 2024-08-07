@@ -307,7 +307,7 @@ class PICO:
 
         return p
 
-    def get_lambda_range(
+    def get_lambda_range_plot(
         self, lambda_filter: bool = False, filter_values_lambda: tuple = None
     ) -> ggplot:
         """
@@ -380,3 +380,10 @@ class PICO:
             pl.col("lambda_ab2") >= min_lambda_set,
             pl.col("lambda_ab2") <= max_lambda_set,
         )
+
+        # calculate the number of filtered values
+        rows_before = str(self.df_couplexes.select(pl.len()).to_numpy().item())
+        rows_after = str(self.df_couplexes_filtered.select(pl.len()).to_numpy().item())
+
+        # save the message to display as a property of the class
+        self.lambda_filter_msg = f"Current plot displays <span style='color: {shiny_theme.colors.primary};'>{rows_after}</span> of <span style='color: {shiny_theme.colors.primary};'>{rows_before}</span> total data points."

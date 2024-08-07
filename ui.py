@@ -104,6 +104,7 @@ app_ui = ui.page_fluid(
                         "download_plot", "Download plot as PDF", class_="float-right"
                     ),
                 ),
+                ui.output_ui("render_lambda_filter_message"),
                 ui.output_plot("render_plot_couplexes", width="100%"),
             ),
         ),
