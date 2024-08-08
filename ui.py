@@ -85,7 +85,7 @@ app_ui = ui.page_fluid(
                     ),
                 ),
                 # CSS width of sidebar
-                width="30%",
+                width="33%",
                 # sidebar cannot be closed and is always open
                 open="always",
                 # when publishing the app on shinyapps.io, I don't know how do display static files

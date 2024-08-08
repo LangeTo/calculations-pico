@@ -24,12 +24,21 @@ def calculate_clusters(df):
         colors = df["Categories"].values[0]
         color_ab1, color_ab2 = colors.split("-")
         df_extrac["colorpair"] = color_ab1[0] + color_ab2[0]
+        # add corresponding antibodies
+        # this only works, when the antibodies are specified as targets of the reaction mix in the QIAcuity Software Suite
+        antibodies = df["Target names"].values[0]
+        ab1, ab2 = antibodies.split(",")
+        df_extrac["antibody1"] = ab1
+        df_extrac["antibody2"] = ab2
 
     # if three channels used in dPCR
     elif len(df["Group"].values[0]) == 3:
         # get colors available
         colors = df["Categories"].values[0]
         color_one, color_two, color_three = colors.split("-")
+        # get the antibodies available
+        antibodies = df["Target names"].values[0]
+        ab1, ab2, ab3 = antibodies.split(",")
 
         # extract values for ++-, +-- and -+- in separate columns (first colorpair)
         df_extrac1 = df[df["Group"] == "++-"].copy()
@@ -62,6 +71,9 @@ def calculate_clusters(df):
             )
         # add color to dataframe
         df_extrac1["colorpair"] = color_one[0] + color_two[0]
+        # add the antibodies to the dataframe
+        df_extrac1["antibody1"] = ab1
+        df_extrac1["antibody2"] = ab2
 
         # extract values for +-+, +-- and --+ in separate columns (second colorpair)
         df_extrac2 = df[df["Group"] == "+-+"].copy()
@@ -94,6 +106,9 @@ def calculate_clusters(df):
             )
         # add color to dataframe
         df_extrac2["colorpair"] = color_one[0] + color_three[0]
+        # add the antibodies to the dataframe
+        df_extrac2["antibody1"] = ab1
+        df_extrac2["antibody2"] = ab3
 
         # extract values for -++, -+- and --+ in separate columns (third colorpair)
         df_extrac3 = df[df["Group"] == "-++"].copy()
@@ -126,6 +141,9 @@ def calculate_clusters(df):
             )
         # add color to dataframe
         df_extrac3["colorpair"] = color_two[0] + color_three[0]
+        # add the antibodies to the dataframe
+        df_extrac3["antibody1"] = ab2
+        df_extrac3["antibody2"] = ab3
 
         # combine all colorpairs into one dataframe
         extrac_list = [df_extrac1, df_extrac2, df_extrac3]
@@ -136,6 +154,9 @@ def calculate_clusters(df):
         # get colors available
         colors = df["Categories"].values[0]
         color_one, color_two, color_three, color_four = colors.split("-")
+        # get the antibodies available
+        antibodies = df["Target names"].values[0]
+        ab1, ab2, ab3, ab4 = antibodies.split(",")
 
         # extract values for ++--, +--- and -+-- in separate columns (first colorpair)
         df_extrac1 = df[df["Group"] == "++--"].copy()
@@ -173,6 +194,9 @@ def calculate_clusters(df):
             )
         # add color to dataframe
         df_extrac1["colorpair"] = color_one[0] + color_two[0]
+        # add the antibodies to the dataframe
+        df_extrac1["antibody1"] = ab1
+        df_extrac1["antibody2"] = ab2
 
         # extract values for +-+-, +--- and --+- in separate columns (second colorpair)
         df_extrac2 = df[df["Group"] == "+-+-"].copy()
@@ -210,6 +234,9 @@ def calculate_clusters(df):
             )
         # add color to dataframe
         df_extrac2["colorpair"] = color_one[0] + color_three[0]
+        # add the antibodies to the dataframe
+        df_extrac2["antibody1"] = ab1
+        df_extrac2["antibody2"] = ab3
 
         # extract values for +--+, +--- and ---+ in separate columns (third colorpair)
         df_extrac3 = df[df["Group"] == "+--+"].copy()
@@ -247,6 +274,9 @@ def calculate_clusters(df):
             )
         # add color to dataframe
         df_extrac3["colorpair"] = color_one[0] + color_four[0]
+        # add the antibodies to the dataframe
+        df_extrac3["antibody1"] = ab1
+        df_extrac3["antibody2"] = ab4
 
         # extract values for -++-, -+-- and --+- in separate columns (fourth colorpair)
         df_extrac4 = df[df["Group"] == "-++-"].copy()
@@ -284,6 +314,9 @@ def calculate_clusters(df):
             )
         # add color to dataframe
         df_extrac4["colorpair"] = color_two[0] + color_three[0]
+        # add the antibodies to the dataframe
+        df_extrac4["antibody1"] = ab2
+        df_extrac4["antibody2"] = ab3
 
         # extract values for -+-+, -+-- and ---+ in separate columns (fifth colorpair)
         df_extrac5 = df[df["Group"] == "-+-+"].copy()
@@ -321,6 +354,9 @@ def calculate_clusters(df):
             )
         # add color to dataframe
         df_extrac5["colorpair"] = color_two[0] + color_four[0]
+        # add the antibodies to the dataframe
+        df_extrac5["antibody1"] = ab2
+        df_extrac5["antibody2"] = ab4
 
         # extract values for --++, --+- and ---+ in separate columns (fourth colorpair)
         df_extrac6 = df[df["Group"] == "--++"].copy()
@@ -358,6 +394,9 @@ def calculate_clusters(df):
             )
         # add color to dataframe
         df_extrac6["colorpair"] = color_three[0] + color_four[0]
+        # add the antibodies to the dataframe
+        df_extrac6["antibody1"] = ab4
+        df_extrac6["antibody2"] = ab4
 
         extrac_list = [
             df_extrac1,
@@ -373,5 +412,11 @@ def calculate_clusters(df):
     # if only one or five channels used in dPCR
     else:
         raise ValueError("Number of colors not 2, 3 or 4")
+
+    # join the columns of both antibodies together to get the antibody pair
+    # for better visualization the names are joined by \n
+    df_extrac["antibodies"] = df_extrac[["antibody1", "antibody2"]].agg(
+        "\n&\n".join, axis=1
+    )
 
     return df_extrac

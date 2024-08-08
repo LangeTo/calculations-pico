@@ -53,7 +53,7 @@ class PICO:
         # identifies the available groups, samples and colorparis for filtering in the ui
         self.groups = self.df_filtered_prelim["group"].unique().to_list()
         self.samples = self.df_filtered_prelim["sample_name"].unique().to_list()
-        self.colorpairs = self.df_filtered_prelim["colorpair"].unique().to_list()
+        self.antibodies = self.df_filtered_prelim["antibodies"].unique().to_list()
 
         # calculates the number of couplexes per row
         self.df_couplexes = self._calculate_couplexes()
@@ -182,8 +182,11 @@ class PICO:
                 "mastermix_volume",
                 "dead_volume",
                 "colorpair",
+                "antibodies",
+                "antibody1",
                 "positives_ab1",
                 "lambda_ab1",
+                "antibody2",
                 "positives_ab2",
                 "lambda_ab2",
                 "positives_double",
@@ -218,7 +221,7 @@ class PICO:
         return calculate_couplexes(self.df_filtered_prelim)
 
     def _format_for_lambda_range(
-        self, lambda_filter: bool, groups: tuple, samples: tuple, colorpairs: tuple
+        self, lambda_filter: bool, groups: tuple, samples: tuple, antibodies: tuple
     ) -> tuple:
         """
         This function prepares the data for the lambda ranges of all experimental groups with minimal, maximal and mean values. The plot and the data formatting is inspired by https://plotnine.org/reference/geom_segment.html#an-elaborate-range-plot.
@@ -227,58 +230,56 @@ class PICO:
             lambda_filter (bool): true if the box apply lambda filter is ticked
             groups (tuple): groups (reaction mixes from QIAcuity Software Suite) to be included in the plot
             samples (tuple): samples to be included in the plot
-            colorpairs (tuple): colorpairs (antibody pairs) to be included in the plot
+            antibodies (tuple): antibody pairs to be included in the plot
 
         Returns:
             tuple: a dataframe (df_segments) for geom_segment containing the ranges of the lambdas and a second dataframe (df_points) for geom_point containing the min, max and mean values of each lamda range
         """
 
         # if lambda_filter is false (box not ticked), the raw dataframe with the couplexes from all rows is display, however, if the filter is applied, the dataframe used for plotting is the filtered one
-        # similarly, if groups, samples or colorpairs were filtered, the filtered dataframe is used
+        # similarly, if groups, samples or antibodies were filtered, the filtered dataframe is used
         df = self.df_couplexes
         if (
             lambda_filter
             or len(groups) != len(self.df_couplexes["group"].unique().to_list())
             or len(samples) != len(self.df_couplexes["sample_name"].unique().to_list())
-            or len(colorpairs) != len(self.df_couplexes["colorpair"].unique().to_list())
+            or len(antibodies) != len(self.df_couplexes["antibodies"].unique().to_list())
         ):
             df = self.df_couplexes_filtered
 
+        # extract the information of the first antibody
+        df_ab1 = df.select(
+            [
+                "group",
+                "sample_name",
+                "well",
+                "colorpair",
+                "antibodies",
+                pl.col("lambda_ab1").alias("lambda_ab"),
+                pl.col("antibody1").alias("antibody"),
+            ]
+        )
+
+        # extract the information of the second antibody
+        df_ab2 = df.select(
+            [
+                "group",
+                "sample_name",
+                "well",
+                "colorpair",
+                "antibodies",
+                pl.col("lambda_ab2").alias("lambda_ab"),
+                pl.col("antibody2").alias("antibody"),
+            ]
+        )
+
         df_segments = (
-            # select relevant columns to ease formatting and calculation
-            df.select(
-                [
-                    "group",
-                    "sample_name",
-                    "well",
-                    "lambda_ab1",
-                    "lambda_ab2",
-                    "colorpair",
-                ]
-            )
-            # make a row index
-            .with_row_index(name="id")
-            # equivalent to tidyr::pivot_longer
-            .unpivot(
-                index=["id", "group", "sample_name", "well", "colorpair"],
-                on=["lambda_ab1", "lambda_ab2"],
-                variable_name="antibody",
-                value_name="lambda_ab",
-            )
-            # TODO: when the experimental plan section is done, this value shall be replaced by the actual antibody name, this may require a more complex when, then combination because there can be up to 4 antibodies
-            .with_columns(
-                pl.when(pl.col("antibody") == "lambda_ab1")
-                .then(pl.lit("AB1"))
-                .when(pl.col("antibody") == "lambda_ab2")
-                .then(pl.lit("AB2"))
-                # if non of the above conditions are true
-                # don't know if this is useful
-                .otherwise(pl.lit("no antibody name specified"))
-                # column name
-                .alias("antibody")
-            )
+            # combine the dataframes of the first and the second antibody
+            pl.concat([df_ab1, df_ab2])
             # calculation of min, max and mean for the experimental groups
-            .group_by(["group", "sample_name", "colorpair", "antibody"]).agg(
+            .group_by(
+                ["group", "sample_name", "colorpair", "antibodies", "antibody"]
+            ).agg(
                 min=pl.col("lambda_ab").min(),
                 max=pl.col("lambda_ab").max(),
                 mean=pl.col("lambda_ab").mean(),
@@ -287,11 +288,13 @@ class PICO:
 
         # gather min, max and mean in one column for plotting the points
         df_points = (
+            # similar to tidyr::pivot_longer
             df_segments.unpivot(
                 index=[
                     "group",
                     "sample_name",
                     "colorpair",
+                    "antibodies",
                     "antibody",
                 ],
                 on=["max", "min", "mean"],
@@ -318,17 +321,17 @@ class PICO:
         filter_values_lambda: tuple,
         groups: tuple,
         samples: tuple,
-        colorpairs: tuple,
+        antibodies: tuple,
     ):
         """
-        This functions filters for the lambda values defined by the slider in the ui and for the ticked boxes in the checkboxes of group, sample and colorpair. This function updates self.df_couplexes_filtered.
+        This functions filters for the lambda values defined by the slider in the ui and for the ticked boxes in the checkboxes of group, sample and antibodies. This function updates self.df_couplexes_filtered.
 
         Args:
             lambda_filter (bool): true if the box apply lambda filter is ticked
             filter_values_lambda (tuple): min and max value for filtering from the slider
             groups (tuple): groups (reaction mixes from QIAcuity Software Suite) to be included in the plot
             samples (tuple): samples to be included in the plot
-            colorpairs (tuple): colorpairs (antibody pairs) to be included in the plot
+            antibodies (tuple): antibody pairs to be included in the plot
         """
 
         # if lambda filtering is not applied minimal and maximal values from the dataframe itself are used (fake fitlering)
@@ -348,7 +351,7 @@ class PICO:
             # this following filter check if the values in columns are in the lists that come from the checkboxes
             pl.col("group").is_in(groups),
             pl.col("sample_name").is_in(samples),
-            pl.col("colorpair").is_in(colorpairs),
+            pl.col("antibodies").is_in(antibodies),
         )
 
         # calculate the number of filtered values
@@ -421,7 +424,7 @@ class PICO:
         return p
 
     def get_couplex_plot(
-        self, lambda_filter: bool, groups: tuple, samples: tuple, colorpairs: tuple
+        self, lambda_filter: bool, groups: tuple, samples: tuple, antibodies: tuple
     ) -> ggplot:
         """
         This function plots the number of couplexes of the filtered dataframe, which is saved in self.df_filtered.
@@ -430,20 +433,20 @@ class PICO:
             lambda_filter (bool): true if the box apply lambda filter is ticked
             groups (tuple): groups (reaction mixes from QIAcuity Software Suite) to be included in the plot
             samples (tuple): samples to be included in the plot
-            colorpairs (tuple): colorpairs (antibody pairs) to be included in the plot
+            antibodies (tuple): antibody pairs to be included in the plot
 
         Returns:
             ggplot: violin plot with the number of couplexes
         """
 
         # if lambda_filter is false (box not ticked), the raw dataframe with the couplexes from all rows is display, however, if the filter is applied, the dataframe used for plotting is the filtered one
-        # similarly, if groups, samples or colorpairs were filtered, the filtered dataframe is used
+        # similarly, if groups, samples or antibodies were filtered, the filtered dataframe is used
         df = self.df_couplexes
         if (
             lambda_filter
             or len(groups) != len(self.df_couplexes["group"].unique().to_list())
             or len(samples) != len(self.df_couplexes["sample_name"].unique().to_list())
-            or len(colorpairs) != len(self.df_couplexes["colorpair"].unique().to_list())
+            or len(antibodies) != len(self.df_couplexes["antibodies"].unique().to_list())
         ):
             df = self.df_couplexes_filtered
 
@@ -477,7 +480,7 @@ class PICO:
                     x="Sample",
                     y=f"Number of couplexes in {self.vol} ul",
                 )
-                + facet_wrap("colorpair")
+                + facet_wrap("antibodies")
                 + theme(
                     # remove background from facets
                     panel_background=element_blank(),
@@ -501,7 +504,7 @@ class PICO:
         lambda_filter: bool,
         groups: tuple,
         samples: tuple,
-        colorpairs: tuple,
+        antibodies: tuple,
         additional_space=0.05,
         num_x_ticks=4,
     ) -> ggplot:
@@ -512,7 +515,7 @@ class PICO:
             lambda_filter (bool): true if the box apply lambda filter is ticked
             groups (tuple): groups (reaction mixes from QIAcuity Software Suite) to be included in the plot
             samples (tuple): samples to be included in the plot
-            colorpairs (tuple): colorpairs (antibody pairs) to be included in the plot
+            antibodies (tuple): antibody pairs to be included in the plot
             additional_space (float, optional): additional space from min and max lambda to limit of x-axis. Defaults to 0.05.
             num_x_ticks (int, optional): number of vertical lines in the ranges. Defaults to 4.
 
@@ -545,7 +548,7 @@ class PICO:
             lambda_filter=lambda_filter,
             groups=groups,
             samples=samples,
-            colorpairs=colorpairs,
+            antibodies=antibodies,
         )
 
         # generate list for vertial lines used by geom_vline and labels from 0 to max_lambda
@@ -614,7 +617,9 @@ class PICO:
                 # separate the label to right from the point
                 nudge_x=0.04,
             )
-            + facet_wrap(["group", "sample_name", "colorpair"], scales="free_y")
+            # is facetting by sample_name actually meaningful or not?
+            # I will need to see
+            + facet_wrap(["group", "sample_name", "antibodies"], scales="free_y")
             + scale_x_continuous(labels=tickx, breaks=tickx)
             + scale_fill_manual(
                 values=[

@@ -55,7 +55,7 @@ def server(input: Inputs, output: Outputs, session: Session):
         input.slider_lambda,
         input.filter_group,
         input.filter_sample,
-        input.filter_colorpair,
+        input.filter_antibodies,
     )
     def _():
         pico = pico_instance.get()
@@ -66,14 +66,14 @@ def server(input: Inputs, output: Outputs, session: Session):
                 input.lambda_filter()
                 or input.filter_group()
                 or input.filter_sample()
-                or input.filter_colorpair()
+                or input.filter_antibodies()
             ):
                 pico.filtering(
                     lambda_filter=input.lambda_filter(),
                     filter_values_lambda=input.slider_lambda(),
                     groups=input.filter_group(),
                     samples=input.filter_sample(),
-                    colorpairs=input.filter_colorpair(),
+                    antibodies=input.filter_antibodies(),
                 )
             else:
                 pico.df_couplexes_filtered = pico.df_couplexes
@@ -103,7 +103,7 @@ def server(input: Inputs, output: Outputs, session: Session):
         input.slider_lambda,
         input.filter_group,
         input.filter_sample,
-        input.filter_colorpair,
+        input.filter_antibodies,
     )
     def filter_message():
         pico = pico_instance.get()
@@ -112,7 +112,7 @@ def server(input: Inputs, output: Outputs, session: Session):
                 input.lambda_filter()
                 or input.filter_group()
                 or input.filter_sample()
-                or input.filter_colorpair()
+                or input.filter_antibodies()
             ):
                 return ui.div(ui.HTML(pico.filter_msg))
         else:
@@ -137,7 +137,7 @@ def server(input: Inputs, output: Outputs, session: Session):
             # if nothing is uploaded, it returns an empty HTML element
             return ui.HTML("")
         else:
-            # if an object of the PICO class was generated it returns the checkboxes for groups, samples and colorpairs and lambda filters
+            # if an object of the PICO class was generated it returns the checkboxes for groups, samples and antibodies and lambda filters
             return (
                 ui.card(
                     ui.card_header(
@@ -169,7 +169,7 @@ def server(input: Inputs, output: Outputs, session: Session):
                     ),
                     ui.output_plot("render_lambda_hist", height="100px"),
                 ),
-                # the default is that all groups, samples and colorpairs are selected
+                # the default is that all groups, samples and antibodies are selected
                 ui.card(
                     ui.card_header(
                         ui.tooltip(
@@ -194,16 +194,16 @@ def server(input: Inputs, output: Outputs, session: Session):
                             selected=pico.samples,
                         ),
                         ui.input_checkbox_group(
-                            "filter_colorpair",
+                            "filter_antibodies",
                             ui.tooltip(
                                 ui.span(
-                                    "Colorpairs: ",
+                                    "Antibodies: ",
                                     question_circle_fill,
                                 ),
-                                "A colorpair is a combination of two fluorescent detection channels of a dPCR system. Usually, there is one antibody detected per fluorescent detection channel. The combination of two antibodies of all antibodies used (maximal 4) generates the required 2-dimensional raw data for the calculation of the number of couplexes using the dDPCS model.",
+                                "The antibodies names only appear, if you specified them as targets of the reaction mix in the QIAcuity Software Suite.",
                             ),
-                            choices=pico.colorpairs,
-                            selected=pico.colorpairs,
+                            choices=pico.antibodies,
+                            selected=pico.antibodies,
                         ),
                     ),
                 ),
@@ -248,7 +248,7 @@ def server(input: Inputs, output: Outputs, session: Session):
         input.slider_lambda,
         input.filter_group,
         input.filter_sample,
-        input.filter_colorpair,
+        input.filter_antibodies,
     )
     def plot_couplexes_violin():
         pico = pico_instance.get()
@@ -261,7 +261,7 @@ def server(input: Inputs, output: Outputs, session: Session):
                 lambda_filter=input.lambda_filter(),
                 groups=input.filter_group(),
                 samples=input.filter_sample(),
-                colorpairs=input.filter_colorpair(),
+                antibodies=input.filter_antibodies(),
             )
 
     # calls plot_couplexes to plot the data
@@ -281,7 +281,7 @@ def server(input: Inputs, output: Outputs, session: Session):
         input.slider_lambda,
         input.filter_group,
         input.filter_sample,
-        input.filter_colorpair,
+        input.filter_antibodies,
     )
     def plot_lambda_ranges():
         pico = pico_instance.get()
@@ -292,7 +292,7 @@ def server(input: Inputs, output: Outputs, session: Session):
                 lambda_filter=input.lambda_filter(),
                 groups=input.filter_group(),
                 samples=input.filter_sample(),
-                colorpairs=input.filter_colorpair(),
+                antibodies=input.filter_antibodies(),
             )
 
     @output

@@ -4,6 +4,7 @@
 - sample names containing NTC will be removed
 - supported Nanoplate formats 8.5k (use 13µl master mix) and 26k (use 42µl master mix)
 - clusters with 0 counts are removed
+- specify antibody names as target names of the reaction mix, avoid "," in the antibody name
 
 
 *more information on usage will follow*
@@ -18,7 +19,7 @@
 graph TD;
 %% classDef sub opacity:0.5
 %% classDef note stroke:none
-    subgraph init ["__init__()"]
+    subgraph init ["Initialization of an object of the PICO class __init__()"]
         A(Upload and read csv)-->|self._calculate_clusters|B(self.df_clusters);
         B-->|self._general_formatting|C(self.df_clusters_formatted);
         C-->|self._general_filtering|D(self.df_filtered_prelim);
