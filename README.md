@@ -7,10 +7,10 @@
 - specify antibody names as target names of the reaction mix, avoid "," in the antibody name
 
 
-*more information on usage will follow*
 
 [App on shinyapps.io](https://thundert.shinyapps.io/calculate_couplexes/)
 
+developed with ```shiny``` for ```python```, ```plotnine``` and ```polars```
 
 ---
 

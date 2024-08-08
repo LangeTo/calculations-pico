@@ -5,6 +5,7 @@ import os
 import polars as pl
 
 from plotnine import ggplot, theme_void
+from pathlib import Path
 
 # shiny packages
 from shiny import Inputs, Outputs, Session, reactive, render, ui
@@ -352,3 +353,18 @@ def server(input: Inputs, output: Outputs, session: Session):
 
         # remove the temporary file after saving
         os.remove(tmpfile.name)
+
+        # Download handler for the CSV file
+
+    @render.download(filename="example_data.csv")
+    def example_data():
+        # Path to your CSV file (assumes it's in the same directory as this script)
+        file_path = (
+            Path(__file__).parent
+            / "examples\MultipleOccupancy_file_QIAcuity_2.5.0.1.csv"
+        )
+
+        # then I think I have to upload the file turn it into a dataframe and download it
+
+        # Return the file path to download the file
+        yield file_path

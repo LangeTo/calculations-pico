@@ -12,32 +12,33 @@ from icons import question_circle_fill
 
 app_ui = ui.page_fluid(
     ui.card(
-        ui.h1("Implementation of dDPCS model for the calculation of couplexes"),
+        ui.h1("Evaluation of PICO experiments"),
         ui.p(
             "This application is an implementation of the calculation of couplexes introduced in my ",
             ui.a(
                 "PhD thesis",
                 href="https://1drv.ms/b/c/2a1889c160a8e931/EYiHWqkN2QhEjIzN7Rnpd4YBWR9q-ZLcolZ1zigEUPR4PA?e=8DBu0w",
             ),
-            ". At the moment, it uses the MultipleOccupancy file from the QIAcuity Software Suite 2.5.0.1. Here is what the app does:",
+            " as the dDPCS model (dPCR double positive cluster segregation).",
         ),
-        # ordered list
-        ui.tags.ol(
-            ui.tags.li(
-                "It checks the number of antibodies used in the PICO assay and calculates their possible combinations (colorpairs)."
-            ),
-            ui.tags.li(
-                "For all combinations, the app calculates the number of partitions in the single and double positive clusters as well as the number of negative partitions."
-            ),
-            ui.tags.li(
-                "Then, it calculates the number of couplexes using the dDPCS model."
-            ),
-            ui.tags.li(
-                "Finally, it plots the number of couplexes for all antibody combinations (colorpairs) and provides a .csv file to download. The plot can also be downloaded as .pdf."
-            ),
-        ),
+        ui.download_button("example_data", "download"),
+        # # ordered list
+        # ui.tags.ol(
+        #     ui.tags.li(
+        #         "It checks the number of antibodies used in the PICO assay and calculates their possible combinations (colorpairs)."
+        #     ),
+        #     ui.tags.li(
+        #         "For all combinations, the app calculates the number of partitions in the single and double positive clusters as well as the number of negative partitions."
+        #     ),
+        #     ui.tags.li(
+        #         "Then, it calculates the number of couplexes using the dDPCS model."
+        #     ),
+        #     ui.tags.li(
+        #         "Finally, it plots the number of couplexes for all antibody combinations (colorpairs) and provides a .csv file to download. The plot can also be downloaded as .pdf."
+        #     ),
+        # ),
         ui.p(
-            "The source code is available from ",
+            "The complete source code is available from ",
             ui.a("GitHub", href="https://github.com/LangeTo/calculations-pico"),
             ".",
         ),
@@ -49,7 +50,7 @@ app_ui = ui.page_fluid(
                     ui.card_header(
                         ui.tooltip(
                             ui.span(
-                                "Upload MultipleOccupancy file: ",
+                                "Upload file: ",
                                 question_circle_fill,
                             ),
                             ui.span(
