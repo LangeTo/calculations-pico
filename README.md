@@ -26,7 +26,7 @@ graph TD;
         D-->|self._calculate_couplexes|G(self.df_couplexes);
     end
         E-->|self.get_lambda_range|F(histogram of overall\nλ range for sidebar);
-        G-->|self.get_couplex_plot|H(violin plot of couplexes\n for main panel)
+        G-->|self.get_couplex_plot|H(violin plot of couplexes\nfor main panel)
         J-->|self.get_couplex_plot|H
         H-->|download|K(.pdf)
         G-->|download|L(.csv)
@@ -35,6 +35,10 @@ graph TD;
         G-->|self.lambda_filtering|J(self.df_couplexes_filtered)
         I(filter values from silder)-->J
     end
+    G-->|self.get_lambda_ranges|N(λ range plot for\nmain panel)
+    J-->|self.get_lambda_ranges|N
+    N-->|download|O(.pdf)
+
 
     %% class noteA note   
 ```
