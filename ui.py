@@ -46,8 +46,7 @@ app_ui = ui.page_fluid(
         ui.layout_sidebar(
             ui.sidebar(
                 ui.card(
-                    ui.input_file(
-                        "file1",
+                    ui.card_header(
                         ui.tooltip(
                             ui.span(
                                 "Upload MultipleOccupancy file: ",
@@ -62,6 +61,10 @@ app_ui = ui.page_fluid(
                                 ),
                             ),
                         ),
+                    ),
+                    ui.input_file(
+                        "file1",
+                        "",
                         accept=[".csv"],
                         multiple=False,
                         width="100%",
@@ -97,15 +100,38 @@ app_ui = ui.page_fluid(
                 #     ),
                 # ),
             ),
-            ui.card(
-                ui.card_header(
-                    "Number of couplexes for samples and antibody pairs (or colorpairs).",
-                    ui.download_button(
-                        "download_plot", "Download plot as PDF", class_="float-right"
+            ui.navset_tab(
+                ui.nav_panel(
+                    "Couplexes",
+                    ui.card(
+                        ui.card_header(
+                            "Violin plot of couplexes",
+                            ui.download_button(
+                                "download_plot_couplexes",
+                                "Download plot as PDF",
+                                class_="float-right",
+                            ),
+                        ),
+                        ui.output_ui("render_filter_message"),
+                        ui.output_plot("render_plot_couplexes_violin", width="100%"),
                     ),
                 ),
-                ui.output_ui("render_lambda_filter_message"),
-                ui.output_plot("render_plot_couplexes", width="100%"),
+                ui.nav_panel(
+                    "\u03bb",
+                    ui.card(
+                        ui.card_header(
+                            "Range plot of \u03bb",
+                            ui.download_button(
+                                "download_plot_lambda",
+                                "Download plot as PDF",
+                                class_="float-right",
+                            ),
+                        ),
+                        ui.output_plot(
+                            "render_plot_lambda_ranges", width="100%", height="600px"
+                        ),
+                    ),
+                ),
             ),
         ),
     ),

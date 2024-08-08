@@ -1,6 +1,7 @@
 # python packages
 import pandas as pd
 import polars as pl
+import numpy as np
 
 from plotnine import *
 
@@ -44,7 +45,7 @@ class PICO:
         self.df_filtered_prelim = self._general_filtering()
 
         # prepares data for lambda range plot in the sidebar
-        self.df_lambda = self._format_for_lambda()
+        self.df_lambda = self._format_for_lambda_hist()
         # extract minimal and maximal lambda values for limits in plots
         self.min_lambda = self.df_lambda["lambda_ab"].min()
         self.max_lambda = self.df_lambda["lambda_ab"].max()
@@ -62,7 +63,7 @@ class PICO:
         self.df_couplexes_filtered = self.df_couplexes
 
     ###############################################
-    # private functions
+    # Private functions
     ###############################################
 
     def _calculate_clusters(self) -> pl.DataFrame:
@@ -191,7 +192,7 @@ class PICO:
 
         return df
 
-    def _format_for_lambda(self) -> pl.DataFrame:
+    def _format_for_lambda_hist(self) -> pl.DataFrame:
         """
         This function unpivots self.df_filtered_prelim to have all lambda values in the same column for the lambda range plot.
 
@@ -216,9 +217,208 @@ class PICO:
         """
         return calculate_couplexes(self.df_filtered_prelim)
 
+    def _format_for_lambda_range(
+        self, lambda_filter: bool, groups: tuple, samples: tuple, colorpairs: tuple
+    ) -> tuple:
+        """
+        This function prepares the data for the lambda ranges of all experimental groups with minimal, maximal and mean values. The plot and the data formatting is inspired by https://plotnine.org/reference/geom_segment.html#an-elaborate-range-plot.
+
+        Args:
+            lambda_filter (bool): true if the box apply lambda filter is ticked
+            groups (tuple): groups (reaction mixes from QIAcuity Software Suite) to be included in the plot
+            samples (tuple): samples to be included in the plot
+            colorpairs (tuple): colorpairs (antibody pairs) to be included in the plot
+
+        Returns:
+            tuple: a dataframe (df_segments) for geom_segment containing the ranges of the lambdas and a second dataframe (df_points) for geom_point containing the min, max and mean values of each lamda range
+        """
+
+        # if lambda_filter is false (box not ticked), the raw dataframe with the couplexes from all rows is display, however, if the filter is applied, the dataframe used for plotting is the filtered one
+        # similarly, if groups, samples or colorpairs were filtered, the filtered dataframe is used
+        df = self.df_couplexes
+        if (
+            lambda_filter
+            or len(groups) != len(self.df_couplexes["group"].unique().to_list())
+            or len(samples) != len(self.df_couplexes["sample_name"].unique().to_list())
+            or len(colorpairs) != len(self.df_couplexes["colorpair"].unique().to_list())
+        ):
+            df = self.df_couplexes_filtered
+
+        df_segments = (
+            # select relevant columns to ease formatting and calculation
+            df.select(
+                [
+                    "group",
+                    "sample_name",
+                    "well",
+                    "lambda_ab1",
+                    "lambda_ab2",
+                    "colorpair",
+                ]
+            )
+            # make a row index
+            .with_row_index(name="id")
+            # equivalent to tidyr::pivot_longer
+            .unpivot(
+                index=["id", "group", "sample_name", "well", "colorpair"],
+                on=["lambda_ab1", "lambda_ab2"],
+                variable_name="antibody",
+                value_name="lambda_ab",
+            )
+            # TODO: when the experimental plan section is done, this value shall be replaced by the actual antibody name, this may require a more complex when, then combination because there can be up to 4 antibodies
+            .with_columns(
+                pl.when(pl.col("antibody") == "lambda_ab1")
+                .then(pl.lit("AB1"))
+                .when(pl.col("antibody") == "lambda_ab2")
+                .then(pl.lit("AB2"))
+                # if non of the above conditions are true
+                # don't know if this is useful
+                .otherwise(pl.lit("no antibody name specified"))
+                # column name
+                .alias("antibody")
+            )
+            # calculation of min, max and mean for the experimental groups
+            .group_by(["group", "sample_name", "colorpair", "antibody"]).agg(
+                min=pl.col("lambda_ab").min(),
+                max=pl.col("lambda_ab").max(),
+                mean=pl.col("lambda_ab").mean(),
+            )
+        )
+
+        # gather min, max and mean in one column for plotting the points
+        df_points = (
+            df_segments.unpivot(
+                index=[
+                    "group",
+                    "sample_name",
+                    "colorpair",
+                    "antibody",
+                ],
+                on=["max", "min", "mean"],
+                variable_name="stat",
+                value_name="lambda",
+            )
+            # round the lambda to two digits and format as string to use it as label for min, max and mean
+            .with_columns(pl.col("lambda").round(2).cast(pl.String).alias("lambda_str"))
+        )
+
+        # get the minimal and maximal values of the current dataframe
+        max_lambda = df_segments["max"].max()
+        min_lambda = df_segments["min"].min()
+
+        return df_segments, df_points, max_lambda, min_lambda
+
     ###############################################
-    # public functions
+    # Public functions
     ###############################################
+
+    def filtering(
+        self,
+        lambda_filter: bool,
+        filter_values_lambda: tuple,
+        groups: tuple,
+        samples: tuple,
+        colorpairs: tuple,
+    ):
+        """
+        This functions filters for the lambda values defined by the slider in the ui and for the ticked boxes in the checkboxes of group, sample and colorpair. This function updates self.df_couplexes_filtered.
+
+        Args:
+            lambda_filter (bool): true if the box apply lambda filter is ticked
+            filter_values_lambda (tuple): min and max value for filtering from the slider
+            groups (tuple): groups (reaction mixes from QIAcuity Software Suite) to be included in the plot
+            samples (tuple): samples to be included in the plot
+            colorpairs (tuple): colorpairs (antibody pairs) to be included in the plot
+        """
+
+        # if lambda filtering is not applied minimal and maximal values from the dataframe itself are used (fake fitlering)
+        min_lambda_set = self.min_lambda
+        max_lambda_set = self.max_lambda
+
+        # however, when a lambda filter is applied, the filter values from the slider are used
+        if lambda_filter:
+            # get the minimal and maximal lambda values for filtering from the slider
+            min_lambda_set, max_lambda_set = filter_values_lambda
+
+        self.df_couplexes_filtered = self.df_couplexes.filter(
+            pl.col("lambda_ab1") >= min_lambda_set,
+            pl.col("lambda_ab1") <= max_lambda_set,
+            pl.col("lambda_ab2") >= min_lambda_set,
+            pl.col("lambda_ab2") <= max_lambda_set,
+            # this following filter check if the values in columns are in the lists that come from the checkboxes
+            pl.col("group").is_in(groups),
+            pl.col("sample_name").is_in(samples),
+            pl.col("colorpair").is_in(colorpairs),
+        )
+
+        # calculate the number of filtered values
+        rows_before = str(self.df_couplexes.select(pl.len()).to_numpy().item())
+        rows_after = str(self.df_couplexes_filtered.select(pl.len()).to_numpy().item())
+
+        # save the message to display as a property of the class
+        self.filter_msg = f"Current plot displays <span style='color: {shiny_theme.colors.primary};'>{rows_after}</span> of <span style='color: {shiny_theme.colors.primary};'>{rows_before}</span> total data points."
+
+    def get_lambda_hist(
+        self, lambda_filter: bool = False, filter_values_lambda: tuple = None
+    ) -> ggplot:
+        """
+        This function plots the entire lambda range of the uploaded data and depending on the chosen lambda values, it colors the bins of the histogram based filter values from the slider.
+
+        Args:
+            lambda_filter (bool, optional): If false, no filtering applied. Defaults to False.
+            filter_values_lambda (tuple, optional): Minimal and maximal value for filtering, obtained from the input.slider_lambda() of the ui. Defaults to None.
+
+        Returns:
+            ggplot: A histogram of the lambda range with colored bins depending on input.slider_lambda().
+        """
+
+        if lambda_filter and filter_values_lambda:
+            # unpack the filter values
+            min_val, max_val = filter_values_lambda
+            # create a new column, which identifies the the color of the bin
+            df = self.df_lambda.with_columns(
+                pl.when(pl.col("lambda_ab") < min_val)
+                .then(pl.lit("below"))
+                .when(pl.col("lambda_ab") > max_val)
+                .then(pl.lit("above"))
+                .otherwise(pl.lit("within"))
+                .alias("color_class")
+            )
+
+            # use the theme colors for the bin colors
+            bin_colors = {
+                "below": shiny_theme.colors.secondary,
+                "within": shiny_theme.colors.primary,
+                "above": shiny_theme.colors.secondary,
+            }
+
+        # if no filtering, all bins have the same color
+        else:
+            df = self.df_lambda.with_columns(pl.lit("within").alias("color_class"))
+            bin_colors = {"within": shiny_theme.colors.secondary}
+
+        p = (
+            ggplot(df, aes(x="lambda_ab", fill="color_class", color="color_class"))
+            + geom_histogram(binwidth=0.01, show_legend=False)
+            # same maximal x values as the slider, obtained form the data and rounded up
+            # min value below zero because middle of first bin is 0
+            + scale_x_continuous(limits=[-0.01, round_up(self.max_lambda, 1)])
+            + scale_fill_manual(values=bin_colors)
+            + scale_color_manual(values=bin_colors)
+            # create some space to display the x axis ticks correctly on shinyapps.io
+            + labs(x=" ")
+            + theme(
+                # remove all labels, lines and text from the histogram to have a plain plot
+                axis_title_y=element_blank(),
+                axis_text_y=element_blank(),
+                axis_ticks=element_blank(),
+                panel_background=element_blank(),
+                # color of all the text
+                text=element_text(color=shiny_theme.colors.dark),
+            )
+        )
+
+        return p
 
     def get_couplex_plot(
         self, lambda_filter: bool, groups: tuple, samples: tuple, colorpairs: tuple
@@ -296,106 +496,157 @@ class PICO:
 
         return p
 
-    def get_lambda_range_plot(
-        self, lambda_filter: bool = False, filter_values_lambda: tuple = None
-    ) -> ggplot:
-        """
-        This function plots the entire lambda range of the uploaded data and depending on the chosen lambda values, it colors the bins of the histogram based filter values from the slider.
-
-        Args:
-            lambda_filter (bool, optional): If false, no filtering applied. Defaults to False.
-            filter_values_lambda (tuple, optional): Minimal and maximal value for filtering, obtained from the input.slider_lambda() of the ui. Defaults to None.
-
-        Returns:
-            ggplot: A histogram of the lambda range with colored bins depending on input.slider_lambda().
-        """
-
-        if lambda_filter and filter_values_lambda:
-            # unpack the filter values
-            min_val, max_val = filter_values_lambda
-            # create a new column, which identifies the the color of the bin
-            df = self.df_lambda.with_columns(
-                pl.when(pl.col("lambda_ab") < min_val)
-                .then(pl.lit("below"))
-                .when(pl.col("lambda_ab") > max_val)
-                .then(pl.lit("above"))
-                .otherwise(pl.lit("within"))
-                .alias("color_class")
-            )
-
-            # use the theme colors for the bin colors
-            bin_colors = {
-                "below": shiny_theme.colors.secondary,
-                "within": shiny_theme.colors.primary,
-                "above": shiny_theme.colors.secondary,
-            }
-
-        # if no filtering, all bins have the same color
-        else:
-            df = self.df_lambda.with_columns(pl.lit("within").alias("color_class"))
-            bin_colors = {"within": shiny_theme.colors.secondary}
-
-        p = (
-            ggplot(df, aes(x="lambda_ab", fill="color_class", color="color_class"))
-            + geom_histogram(binwidth=0.01, show_legend=False)
-            # same maximal x values as the slider, obtained form the data and rounded up
-            # min value below zero because middle of first bin is 0
-            + scale_x_continuous(limits=[-0.01, round_up(self.max_lambda, 1)])
-            + scale_fill_manual(values=bin_colors)
-            + scale_color_manual(values=bin_colors)
-            # remove all labels, lines and text from the histogram to have a plain plot
-            + theme(
-                axis_title=element_blank(),
-                axis_text_y=element_blank(),
-                axis_ticks=element_blank(),
-                panel_background=element_blank(),
-            )
-        )
-
-        return p
-
-    def filtering(
+    def get_lambda_ranges(
         self,
         lambda_filter: bool,
-        filter_values_lambda: tuple,
         groups: tuple,
         samples: tuple,
         colorpairs: tuple,
-    ):
+        additional_space=0.05,
+        num_x_ticks=4,
+    ) -> ggplot:
         """
-        This functions filters for the lambda values defined by the slider in the ui and for the ticked boxes in the checkboxes of group, sample and colorpair. This function updates self.df_couplexes_filtered.
+        This functions plots the lambda ranges of each experimental group, sample and antibody. Because some PICO experiments have an inherent redundancy as one antibody may be used in multiple antibody combinations, this plot will contain redundant information, too, i.e. some lambda ranges are plotted twice. However, the combination of two antibodies is unique. First, the function calls another function to format the data and then plots the lambda ranges using plotnine.
 
         Args:
             lambda_filter (bool): true if the box apply lambda filter is ticked
-            filter_values_lambda (tuple): min and max value for filtering from the slider
             groups (tuple): groups (reaction mixes from QIAcuity Software Suite) to be included in the plot
             samples (tuple): samples to be included in the plot
             colorpairs (tuple): colorpairs (antibody pairs) to be included in the plot
+            additional_space (float, optional): additional space from min and max lambda to limit of x-axis. Defaults to 0.05.
+            num_x_ticks (int, optional): number of vertical lines in the ranges. Defaults to 4.
+
+        Returns:
+            ggplot: a range plot of the lambda values of the couplex plot according to the filters
         """
 
-        # if lambda filtering is not applied minimal and maximal values from the dataframe itself are used (fake fitlering)
-        min_lambda_set = self.min_lambda
-        max_lambda_set = self.max_lambda
+        # return warning when dataframes are empty because of filtering
+        if self.df_couplexes.is_empty() or self.df_couplexes_filtered.is_empty():
 
-        # however, when a lambda filter is applied, the filter values from the slider are used
-        if lambda_filter:
-            # get the minimal and maximal lambda values for filtering from the slider
-            min_lambda_set, max_lambda_set = filter_values_lambda
+            p = (
+                ggplot()
+                + annotate(
+                    "text",
+                    x=0.5,
+                    y=0.6,
+                    label="The current selection returns an empty dataframe.\nNothing to display :-(",
+                    ha="center",
+                    va="center",
+                    size=16,
+                    color=shiny_theme.colors.dark,
+                )
+                + theme_void()
+            )
 
-        self.df_couplexes_filtered = self.df_couplexes.filter(
-            pl.col("lambda_ab1") >= min_lambda_set,
-            pl.col("lambda_ab1") <= max_lambda_set,
-            pl.col("lambda_ab2") >= min_lambda_set,
-            pl.col("lambda_ab2") <= max_lambda_set,
-            # this following filter check if the values in columns are in the lists that come from the checkboxes
-            pl.col("group").is_in(groups),
-            pl.col("sample_name").is_in(samples),
-            pl.col("colorpair").is_in(colorpairs),
+            return p
+
+        # prepare the data
+        df_segments, df_points, max_lambda, min_lambda = self._format_for_lambda_range(
+            lambda_filter=lambda_filter,
+            groups=groups,
+            samples=samples,
+            colorpairs=colorpairs,
         )
 
-        # calculate the number of filtered values
-        rows_before = str(self.df_couplexes.select(pl.len()).to_numpy().item())
-        rows_after = str(self.df_couplexes_filtered.select(pl.len()).to_numpy().item())
+        # generate list for vertial lines used by geom_vline and labels from 0 to max_lambda
+        tickx = list(
+            np.round(
+                np.linspace(
+                    min_lambda - additional_space,
+                    max_lambda + additional_space,
+                    num=num_x_ticks,
+                ),
+                2,
+            )
+        )
 
-        # save the message to display as a property of the class
-        self.lambda_filter_msg = f"Current plot displays <span style='color: {shiny_theme.colors.primary};'>{rows_after}</span> of <span style='color: {shiny_theme.colors.primary};'>{rows_before}</span> total data points."
+        p = (
+            ggplot()
+            # background segements for total range
+            + geom_segment(
+                df_segments,
+                aes(y="antibody", yend="antibody"),
+                x=min_lambda - additional_space,
+                xend=max_lambda + additional_space,
+                size=6,
+                color=shiny_theme.colors.light,
+            )
+            # vertical lines for orientation
+            + geom_vline(
+                xintercept=tickx,
+                color=shiny_theme.colors.dark,
+            )
+            # actual range segment
+            + geom_segment(
+                df_segments,
+                aes(x="min", xend="max", y="antibody", yend="antibody"),
+                size=6,
+                color=shiny_theme.colors.body_color,
+            )
+            # mean, min and max points
+            + geom_point(
+                df_points,
+                aes("lambda", "antibody", color="stat", fill="stat"),
+                size=5,
+                stroke=0.7,
+                show_legend=False,
+            )
+            # labels for mean, min and max points
+            + geom_text(
+                df_points.filter(pl.col("stat") == "mean"),
+                aes(x="lambda", y="antibody", label="lambda_str"),
+                color=shiny_theme.colors.light,
+                size=8,
+            )
+            + geom_text(
+                df_points.filter(pl.col("stat") == "min"),
+                aes(x="lambda", y="antibody", label="lambda_str"),
+                color=shiny_theme.colors.dark,
+                size=8,
+                # separate the label to left from the point
+                nudge_x=-0.04,
+            )
+            + geom_text(
+                df_points.filter(pl.col("stat") == "max"),
+                aes(x="lambda", y="antibody", label="lambda_str"),
+                color=shiny_theme.colors.dark,
+                size=8,
+                # separate the label to right from the point
+                nudge_x=0.04,
+            )
+            + facet_wrap(["group", "sample_name", "colorpair"], scales="free_y")
+            + scale_x_continuous(labels=tickx, breaks=tickx)
+            + scale_fill_manual(
+                values=[
+                    shiny_theme.colors.primary,
+                    shiny_theme.colors.secondary,
+                    shiny_theme.colors.primary,
+                ]
+            )
+            + scale_color_manual(
+                values=[
+                    shiny_theme.colors.primary,
+                    shiny_theme.colors.secondary,
+                    shiny_theme.colors.primary,
+                ]
+            )
+            + theme(
+                # remove background from facets
+                panel_background=element_blank(),
+                # remove x ticks
+                axis_ticks_major_x=element_blank(),
+                # adjust color of y ticks
+                axis_ticks_major_y=element_line(color=shiny_theme.colors.dark),
+                # background color of facet labels
+                strip_background=element_rect(fill=shiny_theme.colors.secondary),
+                # color of all the text
+                text=element_text(color=shiny_theme.colors.dark),
+                # text on the secondary color shall be white just as in the shiny theme
+                strip_text=element_text(color=shiny_theme.colors.light),
+            )
+            # remove any remaining ticks and labels
+            # + theme(axis_ticks=element_blank())
+            + labs(y="Antibodies", x="\u03bb-range")
+        )
+
+        return p

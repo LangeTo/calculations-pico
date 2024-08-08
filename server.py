@@ -23,7 +23,7 @@ from helpers import round_up
 def server(input: Inputs, output: Outputs, session: Session):
 
     ###############################################
-    # reactive variables and effects
+    # Reactive variables and effects
     ###############################################
 
     # central reactive variable for PICO instance
@@ -105,7 +105,7 @@ def server(input: Inputs, output: Outputs, session: Session):
         input.filter_sample,
         input.filter_colorpair,
     )
-    def lambda_filter_message():
+    def filter_message():
         pico = pico_instance.get()
         if pico is not None:
             if (
@@ -114,15 +114,15 @@ def server(input: Inputs, output: Outputs, session: Session):
                 or input.filter_sample()
                 or input.filter_colorpair()
             ):
-                return ui.div(ui.HTML(pico.lambda_filter_msg))
+                return ui.div(ui.HTML(pico.filter_msg))
         else:
-            return ui.div(ui.HTML(""))
+            return ui.HTML("")
 
     # this is the function to display the message in the ui.
     @output
     @render.ui
-    def render_lambda_filter_message():
-        return lambda_filter_message()
+    def render_filter_message():
+        return filter_message()
 
     ###############################################
     # UI elements shown upon upload of a file
@@ -161,15 +161,13 @@ def server(input: Inputs, output: Outputs, session: Session):
                     ),
                     ui.input_slider(
                         "slider_lambda",
-                        "Define valid \u03bb range.",
+                        "Define valid \u03bb-range.",
                         min=0,
                         # maximal lambda, which is also used for the histogram of the lambda range
                         max=round_up(pico.max_lambda, 1),
                         value=[0.01, 0.25],
                     ),
-                    ui.output_plot("render_lambda_range", height="100px"),
-                    # after depolying this on shinyapps.io, the labels of the plot were but, maybe this empty container improves the depiction
-                    ui.div(" "),
+                    ui.output_plot("render_lambda_hist", height="100px"),
                 ),
                 # the default is that all groups, samples and colorpairs are selected
                 ui.card(
@@ -212,6 +210,34 @@ def server(input: Inputs, output: Outputs, session: Session):
             )
 
     ###############################################
+    # Histogram of lambda range in sidebar
+    ###############################################
+
+    # the plotting function needs to watch the inputs lambda_filter and slider_lambda
+    # otherwise the plot is not updated when the values are changed
+    @reactive.Calc
+    @reactive.event(input.lambda_filter, input.slider_lambda)
+    def plot_lambda_hist():
+        pico = pico_instance.get()
+        if pico is None:
+            # this will just display an empty plot, when no file is uploaded
+            return ggplot() + theme_void()
+        else:
+            # this will generate the plot of the histogram
+            # if input.lambda_filter() is False, which is the default, there is no color formatting
+            # otherwise, this will color the bins of the histograms that are used in the violin plot of the couplexes green
+            return pico.get_lambda_hist(
+                lambda_filter=input.lambda_filter(),
+                filter_values_lambda=input.slider_lambda(),
+            )
+
+    # calls plot_couplexes to plot the data
+    @output
+    @render.plot
+    def render_lambda_hist():
+        return plot_lambda_hist()
+
+    ###############################################
     # Violin plots of couplexes
     ###############################################
 
@@ -224,7 +250,7 @@ def server(input: Inputs, output: Outputs, session: Session):
         input.filter_sample,
         input.filter_colorpair,
     )
-    def plot_couplexes():
+    def plot_couplexes_violin():
         pico = pico_instance.get()
         if pico is None:
             # this will just display an empty plot, when no file is uploaded
@@ -241,10 +267,43 @@ def server(input: Inputs, output: Outputs, session: Session):
     # calls plot_couplexes to plot the data
     @output
     @render.plot
-    def render_plot_couplexes():
-        return plot_couplexes()
+    def render_plot_couplexes_violin():
+        return plot_couplexes_violin()
 
-    # download function
+    ###############################################
+    # Range plots of lambda from experimental groups
+    ###############################################
+
+    # the plotting function needs to watch the inputs lambda_filter and slider_lambda as well as the checkboxes to be updated when something changed
+    @reactive.Calc
+    @reactive.event(
+        input.lambda_filter,
+        input.slider_lambda,
+        input.filter_group,
+        input.filter_sample,
+        input.filter_colorpair,
+    )
+    def plot_lambda_ranges():
+        pico = pico_instance.get()
+        if pico is None:
+            return ggplot() + theme_void()
+        else:
+            return pico.get_lambda_ranges(
+                lambda_filter=input.lambda_filter(),
+                groups=input.filter_group(),
+                samples=input.filter_sample(),
+                colorpairs=input.filter_colorpair(),
+            )
+
+    @output
+    @render.plot
+    def render_plot_lambda_ranges():
+        return plot_lambda_ranges()
+
+    ###############################################
+    # Downloads
+    ###############################################
+
     # lambda is necessary to use the reactive function for the generation of the filename
     @render.download(filename=lambda: f"{extract_filename()}_processed.csv")
     def download_data():
@@ -253,7 +312,8 @@ def server(input: Inputs, output: Outputs, session: Session):
             # if no file is uploaded, the empty download csv will be called "nothing_processed.csv"
             yield pl.DataFrame().write_csv()
         else:
-            # this dataframe not completely unfiltered, lambda filter was still applied
+            # this dataframe is almost unfiltered
+            # the only filters applied are in the function pico._general_filtering
             yield pico.df_couplexes.write_csv()
 
     # same as download above but with the filtered dataframe
@@ -263,13 +323,11 @@ def server(input: Inputs, output: Outputs, session: Session):
         if pico is None:
             yield pl.DataFrame().write_csv()
         else:
-            # wirte_csv from polars needs to be used because the return dataframe is a polars dataframe in contrast to the other download function above
             yield pico.df_couplexes_filtered.write_csv()
 
-    # calls plot_couplexes to prepare the plot for download
-    @render.download(filename=lambda: f"{extract_filename()}_plot.pdf")
-    def download_plot():
-        plt = plot_couplexes()
+    @render.download(filename=lambda: f"{extract_filename()}_plot_couplexes.pdf")
+    def download_plot_couplexes():
+        plt = plot_couplexes_violin()
         # create temporary file on local machine
         with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmpfile:
             plt.save(tmpfile.name, format="pdf")
@@ -281,30 +339,16 @@ def server(input: Inputs, output: Outputs, session: Session):
         # remove the temporary file after saving
         os.remove(tmpfile.name)
 
-    ###############################################
-    # histogram of lambda range in sidebar
-    ###############################################
+    @render.download(filename=lambda: f"{extract_filename()}_plot_lambda.pdf")
+    def download_plot_lambda():
+        plt = plot_lambda_ranges()
+        # create temporary file on local machine
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmpfile:
+            plt.save(tmpfile.name, format="pdf")
 
-    # the plotting function needs to watch the inputs lambda_filter and slider_lambda
-    # otherwise the plot is not updated when the values are changed
-    @reactive.Calc
-    @reactive.event(input.lambda_filter, input.slider_lambda)
-    def plot_lambda_range():
-        pico = pico_instance.get()
-        if pico is None:
-            # this will just display an empty plot, when no file is uploaded
-            return ggplot() + theme_void()
-        else:
-            # this will generate the plot of the histogram
-            # if input.lambda_filter() is False, which is the default, there is no color formatting
-            # otherwise, this will color the bins of the histograms that are used in the violin plot of the couplexes green
-            return pico.get_lambda_range_plot(
-                lambda_filter=input.lambda_filter(),
-                filter_values_lambda=input.slider_lambda(),
-            )
+        # open the file to ensure it is saved and can be read
+        with open(tmpfile.name, "rb") as f:
+            yield f.read()
 
-    # calls plot_couplexes to plot the data
-    @output
-    @render.plot
-    def render_lambda_range():
-        return plot_lambda_range()
+        # remove the temporary file after saving
+        os.remove(tmpfile.name)

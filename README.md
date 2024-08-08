@@ -22,7 +22,7 @@ graph TD;
         A(Upload and read csv)-->|self._calculate_clusters|B(self.df_clusters);
         B-->|self._general_formatting|C(self.df_clusters_formatted);
         C-->|self._general_filtering|D(self.df_filtered_prelim);
-        D-->|self._format_for_lambda|E(self.df_lambda);
+        D-->|self._format_for_lambda_hist|E(self.df_lambda);
         D-->|self._calculate_couplexes|G(self.df_couplexes);
     end
         E-->|self.get_lambda_range|F(histogram of overall\nλ range for sidebar);
@@ -36,24 +36,9 @@ graph TD;
         I(filter values from silder)-->J
     end
 
-    %% subgraph subinit [" "]
-    %%     init
-    %%     noteA([I AM THE FIRST NOTE])
-    %% end
-
-    %% class noteA note
-    
+    %% class noteA note   
 ```
 
-<!-- (re)deploying the app
-
-```powershell
-rsconnect deploy shiny C:\Users\tl100\PycharmProjects\shiny_amulator --name thundert --title calculate_couplexes
-``` -->
-
-<!-- rename git repository
-* disconnect from remote ```git remote rm origin```
-* add the new remote branch ```git remote add origin https://github.com/LangeTo/calculations-pico.git```
-* then set upstream branch ```git push --set-upstream origin master``` -->
-
-<!-- might also be interesting instead of shiny: https://docs.bokeh.org/en/latest/index.html#  -->
+### to dos
+- ```cluster_calculation.py``` still runs with pandas, while the rest runs with polars. This necessiates the conversion of dataframe types at some points.
+- 
