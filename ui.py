@@ -21,7 +21,6 @@ app_ui = ui.page_fluid(
             ),
             " as the dDPCS model (dPCR double positive cluster segregation).",
         ),
-        # ui.download_button("example_data", "download"),
         # # ordered list
         # ui.tags.ol(
         #     ui.tags.li(
