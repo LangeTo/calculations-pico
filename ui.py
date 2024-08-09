@@ -132,12 +132,5 @@ app_ui = ui.page_fluid(
         ),
     ),
     ui.include_css(Path(__file__).parent / "styles.css"),
-    # change the theme of the entire app
-    # may also be customized later on
-    # https://shiny.posit.co/r/getstarted/build-an-app/customizing-ui/theming.html
-    # https://bootswatch.com/
-    # once the issue with the customization of the theme is solved:
-    # https://forum.posit.co/t/compileerror-when-trying-to-customize-a-shiny-theme/189700
-    # the font shall become the one from shinyswatch.theme.pulse
     theme=shinyswatch.theme.minty,
 )

@@ -5,7 +5,6 @@ import os
 import polars as pl
 
 from plotnine import ggplot, theme_void
-from pathlib import Path
 
 # shiny packages
 from shiny import Inputs, Outputs, Session, reactive, render, ui
