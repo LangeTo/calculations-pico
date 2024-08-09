@@ -132,5 +132,7 @@ app_ui = ui.page_fluid(
         ),
     ),
     ui.include_css(Path(__file__).parent / "styles.css"),
+    # how to adjust the colors in the plot
+    # theme=Path(__file__).parent / "theme_freecastle.css",
     theme=shinyswatch.theme.minty,
 )

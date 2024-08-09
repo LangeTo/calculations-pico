@@ -243,7 +243,8 @@ class PICO:
             lambda_filter
             or len(groups) != len(self.df_couplexes["group"].unique().to_list())
             or len(samples) != len(self.df_couplexes["sample_name"].unique().to_list())
-            or len(antibodies) != len(self.df_couplexes["antibodies"].unique().to_list())
+            or len(antibodies)
+            != len(self.df_couplexes["antibodies"].unique().to_list())
         ):
             df = self.df_couplexes_filtered
 
@@ -446,7 +447,8 @@ class PICO:
             lambda_filter
             or len(groups) != len(self.df_couplexes["group"].unique().to_list())
             or len(samples) != len(self.df_couplexes["sample_name"].unique().to_list())
-            or len(antibodies) != len(self.df_couplexes["antibodies"].unique().to_list())
+            or len(antibodies)
+            != len(self.df_couplexes["antibodies"].unique().to_list())
         ):
             df = self.df_couplexes_filtered
 

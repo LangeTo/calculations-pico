@@ -20,19 +20,21 @@ At the current state, you need to pay attention to some details:
 - To correctly display the antibody names, they should be defined as the targets of the reaction mix in the QIAcuity Software Suite ([see below](#usage)). Avoid the usage of "," in the antibodies names. I would suggest to use the clone of the antibodies because these are unique identifiers. 
 
 ## Usage
-1. Before the dPCR run on the QIAcuity dPCR system, you need to define a plate. Use this chance to set some parameters directly to what you want to see later in the app. The reaction mix as well as the target names will be displayed as in the filter masks of PICO evaluation app.\
+1. Before the dPCR run on the QIAcuity dPCR system, you need to define a plate. Use this chance to set some parameters directly to what you want to see later in the app. The reaction mix as well as the target names will be displayed in the filter masks of PICO evaluation app.\
     <img src="readme_images/reaction_mix.PNG" alt="reaction mix" width="75%"/>
 2. After the dPCR run, in the "Absolute Quantification" tab, select all samples and all targets.\
     <img src="readme_images/selection.PNG" alt="selection" width="75%"/>
-3. Then in the "List" tab, navigate to "Export to CSV..." and select "Multiple occupancy".\
-   <img src="readme_images/download.PNG" alt="reaction mix" width="75%"/>
+3. Then, in the "List" tab, navigate to "Export to CSV..." and select "Multiple occupancy".\
+   <img src="readme_images/download.PNG" alt="download" width="75%"/>
+4. After uploading the file to the [app](https://thundert.shinyapps.io/calculate_couplexes/), a violin plot of the number of couplexes will be displayed in the first tab and in a second tab a plot with the λ-ranges will be displayed. Furthermore, a histogram of the overall λ range is displayed in the sidebar. 
+5. The histogram can be used to apply a λ-filter since values above **0.25** are not recommended ([see my PhD thesis for more details on this](https://1drv.ms/b/c/2a1889c160a8e931/EYiHWqkN2QhEjIzN7Rnpd4YBWR9q-ZLcolZ1zigEUPR4PA?e=8DBu0w)).\
+   <img src="readme_images/lambda.PNG" alt="lambda filter" width="75%"/>
+6. Further control elements allow you to display the experimental groups or antibodies that you are interested in.\
+   <img src="readme_images/filtering.PNG" alt="filtering" width="75%"/>
+7. Finally, you can download filtered and unfiltered dataframes of the plots as .csv files and the plots as .pdf files.
 
-screenshots of software 
-filters 
-
-## Downloads
-columns of the dataframe ...
-
+<!-- ## Downloads
+columns of the dataframe ... -->
 
 ---
 
@@ -42,8 +44,6 @@ Here are some details of how the ```python``` code runs.
 ### Initialization of the PICO class
 ```mermaid
 graph TD;
-%% classDef sub opacity:0.5
-%% classDef note stroke:none
     subgraph init ["Initialization of an object of the PICO class __init__()"]
         A(Upload and read csv)-->|self._calculate_clusters|B(self.df_clusters);
         B-->|self._general_formatting|C(self.df_clusters_formatted);
@@ -51,22 +51,18 @@ graph TD;
         D-->|self._format_for_lambda_hist|E(self.df_lambda);
         D-->|self._calculate_couplexes|G(self.df_couplexes);
     end
-        E-->|self.get_lambda_range|F(histogram of overall\nλ range for sidebar);
-        G-->|self.get_couplex_plot|H(violin plot of couplexes\nfor main panel)
-        J-->|self.get_couplex_plot|H
-        H-->|download|K(.pdf)
-        G-->|download|L(.csv)
-        J-->|download|M(.csv)
-    subgraph lambda ["if input.lambda_filter()"]
-        G-->|self.lambda_filtering|J(self.df_couplexes_filtered)
-        I(filter values from silder)-->J
-    end
+    E-->|self.get_lambda_range|F(histogram of overall\nλ range for sidebar);
+    G-->|self.get_couplex_plot|H(violin plot of couplexes\nfor main panel)
+    J-->|self.get_couplex_plot|H
+    H-->|download|K(.pdf)
+    G-->|download|L(.csv)
+    J-->|download|M(.csv)
+    G-->|if any filters applied|J(self.df_couplexes_filtered)
+    I(λ values from slider)-->J
+    P(ticked checkboxes)-->J
     G-->|self.get_lambda_ranges|N(λ range plot for\nmain panel)
     J-->|self.get_lambda_ranges|N
     N-->|download|O(.pdf)
-
-
-    %% class noteA note   
 ```
 
 
