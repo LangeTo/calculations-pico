@@ -314,7 +314,7 @@ def server(input: Inputs, output: Outputs, session: Session):
         else:
             # this dataframe is almost unfiltered
             # the only filters applied are in the function pico._general_filtering
-            yield pico.df_couplexes.write_csv()
+            yield pico.get_processed_data().write_csv()
 
     # same as download above but with the filtered dataframe
     @render.download(filename=lambda: f"{extract_filename()}_processed_filtered.csv")
@@ -323,7 +323,7 @@ def server(input: Inputs, output: Outputs, session: Session):
         if pico is None:
             yield pl.DataFrame().write_csv()
         else:
-            yield pico.df_couplexes_filtered.write_csv()
+            yield pico.get_processed_filtered_data().write_csv()
 
     @render.download(filename=lambda: f"{extract_filename()}_plot_couplexes.pdf")
     def download_plot_couplexes():

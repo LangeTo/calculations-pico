@@ -657,3 +657,31 @@ class PICO:
         )
 
         return p
+
+    def get_processed_data(self) -> pl.DataFrame:
+        """
+        This functions returns the processed data and replaces the lines breaks necessary for the depiction in the UI and the plots by a space.
+
+        Returns:
+            pl.DataFrame: a dataframe with all results
+        """     
+           
+        df = self.df_couplexes.with_columns(
+            pl.col("antibodies").str.replace("\n&\n", " & ")
+        )
+
+        return df
+
+    def get_processed_filtered_data(self) -> pl.DataFrame:
+        """
+        This functions returns the processed and filtered data and replaces the lines breaks necessary for the depiction in the UI and the plots by a space.
+
+        Returns:
+            pl.DataFrame: a dataframe with filtered results
+        """
+        
+        df = self.df_couplexes_filtered.with_columns(
+            pl.col("antibodies").str.replace("\n&\n", " & ")
+        )
+
+        return df
