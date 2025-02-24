@@ -471,7 +471,11 @@ class PICO:
         else:
             p = (
                 ggplot(df, aes("sample_name", "couplexes"))
-                + geom_violin(scale="width", color=shiny_theme.colors.dark)
+                + geom_violin(
+                    scale="width", color=shiny_theme.colors.dark, style="left"
+                )
+                # https://plotnine.org/reference/examples/geom_violin-preview.html
+                + geom_boxplot(width=0.1)
                 # fix random_state to have the same jitter before and after filtering
                 + geom_point(
                     position=position_jitter(width=0.2, random_state=123),
@@ -664,8 +668,8 @@ class PICO:
 
         Returns:
             pl.DataFrame: a dataframe with all results
-        """     
-           
+        """
+
         df = self.df_couplexes.with_columns(
             pl.col("antibodies").str.replace("\n&\n", " & ")
         )
@@ -679,7 +683,7 @@ class PICO:
         Returns:
             pl.DataFrame: a dataframe with filtered results
         """
-        
+
         df = self.df_couplexes_filtered.with_columns(
             pl.col("antibodies").str.replace("\n&\n", " & ")
         )
