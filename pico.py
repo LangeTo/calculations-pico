@@ -472,15 +472,23 @@ class PICO:
             p = (
                 ggplot(df, aes("sample_name", "couplexes"))
                 + geom_violin(
-                    scale="width", color=shiny_theme.colors.dark, style="left"
+                    # https://plotnine.org/reference/examples/geom_violin-preview.html
+                    # shift the violins a bit to the left
+                    # aes(x=stage("sample_name", after_scale="x-0.15")),
+                    scale="width",
+                    color=shiny_theme.colors.dark,
+                    # style="left",
                 )
-                # https://plotnine.org/reference/examples/geom_violin-preview.html
-                + geom_boxplot(width=0.1)
+                # hide outliers, since the points are shown anyhow
+                + geom_boxplot(width=0.3, outlier_shape="")
                 # fix random_state to have the same jitter before and after filtering
                 + geom_point(
+                    # shift the points a bit to the right
+                    # aes(x=stage("sample_name", after_scale="x+0.15")),
                     position=position_jitter(width=0.2, random_state=123),
                     size=3,
                     color=shiny_theme.colors.primary,
+                    alpha=0.5,
                 )
                 + labs(
                     x="Sample",

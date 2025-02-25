@@ -64,7 +64,10 @@ app_ui = ui.page_fluid(
                                 ui.tags.ul(
                                     ui.tags.li(
                                         "MultipleOccupancy file (.csv) from QIAcuity Software Suite 2.5.0.1"
-                                    )
+                                    ),
+                                    ui.tags.li(
+                                        "MultipleOccupancy file (.csv) from QIAcuity Software Suite 3.1.0.0"
+                                    ),
                                 ),
                             ),
                         ),
@@ -98,10 +101,10 @@ app_ui = ui.page_fluid(
             ),
             ui.navset_tab(
                 ui.nav_panel(
-                    "Violin plot of couplexes",
+                    "Number of couplexes",
                     ui.card(
                         ui.card_header(
-                            "Violin plot of couplexes",
+                            "Number of couplexes",
                             ui.download_button(
                                 "download_plot_couplexes",
                                 "Download plot as PDF",
@@ -113,10 +116,10 @@ app_ui = ui.page_fluid(
                     ),
                 ),
                 ui.nav_panel(
-                    "\u03bb-range plot",
+                    "\u03bb-range",
                     ui.card(
                         ui.card_header(
-                            "\u03bb-range plot",
+                            "\u03bb-range",
                             ui.download_button(
                                 "download_plot_lambda",
                                 "Download plot as PDF",
