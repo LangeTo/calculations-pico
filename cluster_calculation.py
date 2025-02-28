@@ -395,7 +395,7 @@ def calculate_clusters(df):
         # add color to dataframe
         df_extrac6["colorpair"] = color_three[0] + color_four[0]
         # add the antibodies to the dataframe
-        df_extrac6["antibody1"] = ab4
+        df_extrac6["antibody1"] = ab3
         df_extrac6["antibody2"] = ab4
 
         extrac_list = [
