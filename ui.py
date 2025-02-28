@@ -103,28 +103,25 @@ app_ui = ui.page_fluid(
                 ui.nav_panel(
                     "Number of couplexes",
                     ui.card(
-                        ui.card_header(
-                            "Number of couplexes",
+                        ui.layout_columns(
+                            ui.output_ui("switch_plot_type"),
                             ui.download_button(
                                 "download_plot_couplexes",
                                 "Download plot as PDF",
-                                class_="float-right",
                             ),
+                            class_="d-flex align-items-center",
                         ),
                         ui.output_ui("render_filter_message"),
-                        ui.output_plot("render_plot_couplexes_violin", width="100%"),
+                        ui.output_plot("render_plot_couplexes_violin", height="600px"),
                     ),
                 ),
                 ui.nav_panel(
                     "\u03bb-range",
                     ui.card(
-                        ui.card_header(
-                            "\u03bb-range",
-                            ui.download_button(
-                                "download_plot_lambda",
-                                "Download plot as PDF",
-                                class_="float-right",
-                            ),
+                        ui.download_button(
+                            "download_plot_lambda",
+                            "Download plot as PDF",
+                            class_="float-right",
                         ),
                         ui.output_plot(
                             "render_plot_lambda_ranges", width="100%", height="600px"

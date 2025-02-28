@@ -209,6 +209,19 @@ def server(input: Inputs, output: Outputs, session: Session):
                 ),
             )
 
+    @output
+    @render.ui
+    def switch_plot_type():
+        pico = pico_instance.get()
+        if pico != None:
+            return ui.input_checkbox_group(
+                "plot_type",
+                "Choose visualization:",
+                choices=["Boxplot", "Violinplot"],
+                selected=["Boxplot", "Violinplot"],
+                inline=True,
+            )
+
     ###############################################
     # Histogram of lambda range in sidebar
     ###############################################
@@ -249,6 +262,7 @@ def server(input: Inputs, output: Outputs, session: Session):
         input.filter_group,
         input.filter_sample,
         input.filter_antibodies,
+        input.plot_type,
     )
     def plot_couplexes_violin():
         pico = pico_instance.get()
@@ -262,6 +276,7 @@ def server(input: Inputs, output: Outputs, session: Session):
                 groups=input.filter_group(),
                 samples=input.filter_sample(),
                 antibodies=input.filter_antibodies(),
+                plot_type=input.plot_type(),
             )
 
     # calls plot_couplexes to plot the data

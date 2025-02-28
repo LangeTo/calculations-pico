@@ -425,7 +425,12 @@ class PICO:
         return p
 
     def get_couplex_plot(
-        self, lambda_filter: bool, groups: tuple, samples: tuple, antibodies: tuple
+        self,
+        lambda_filter: bool,
+        groups: tuple,
+        samples: tuple,
+        antibodies: tuple,
+        plot_type: tuple,
     ) -> ggplot:
         """
         This function plots the number of couplexes of the filtered dataframe, which is saved in self.df_filtered.
@@ -471,16 +476,6 @@ class PICO:
         else:
             p = (
                 ggplot(df, aes("sample_name", "couplexes"))
-                + geom_violin(
-                    # https://plotnine.org/reference/examples/geom_violin-preview.html
-                    # shift the violins a bit to the left
-                    # aes(x=stage("sample_name", after_scale="x-0.15")),
-                    scale="width",
-                    color=shiny_theme.colors.dark,
-                    # style="left",
-                )
-                # hide outliers, since the points are shown anyhow
-                + geom_boxplot(width=0.3, outlier_shape="")
                 # fix random_state to have the same jitter before and after filtering
                 + geom_point(
                     # shift the points a bit to the right
@@ -510,6 +505,22 @@ class PICO:
                     strip_text=element_text(color=shiny_theme.colors.light),
                 )
             )
+
+            # allow to switch between plot types
+            if len(plot_type) == 2:
+                p = (
+                    p
+                    + geom_violin(scale="width", color=shiny_theme.colors.dark, alpha=0)
+                    + geom_boxplot(width=0.3, outlier_shape="", alpha=0)
+                )
+
+            if len(plot_type) == 1:
+                if plot_type[0] == "Boxplot":
+                    p += geom_boxplot(width=0.3, outlier_shape="", alpha=0)
+                if plot_type[0] == "Violinplot":
+                    p += geom_violin(
+                        scale="width", color=shiny_theme.colors.dark, alpha=0
+                    )
 
         return p
 
